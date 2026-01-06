@@ -209,7 +209,7 @@ void show_register_screen() {
 
     register_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(register_window), "Register - Project Management System");
-    gtk_window_set_default_size(GTK_WINDOW(register_window), 600, 700);
+    gtk_window_set_default_size(GTK_WINDOW(register_window), 700, 750);
     gtk_window_set_position(GTK_WINDOW(register_window), GTK_WIN_POS_CENTER);
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);

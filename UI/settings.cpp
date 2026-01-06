@@ -31,34 +31,90 @@ void show_settings_screen() {
 
     settings_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(settings_window), "Settings - Project Management System");
-    gtk_window_set_default_size(GTK_WINDOW(settings_window), 1400, 800);
+    gtk_window_set_default_size(GTK_WINDOW(settings_window), 1500, 850);
     gtk_window_set_position(GTK_WINDOW(settings_window), GTK_WIN_POS_CENTER);
 
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 30);
-    gtk_container_add(GTK_CONTAINER(settings_window), box);
+    // Main container with centered alignment
+    GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_container_add(GTK_CONTAINER(settings_window), main_box);
 
+    // Header area
+    GtkWidget *header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_container_set_border_width(GTK_CONTAINER(header_box), 20);
+
+    GtkWidget *back_btn = gtk_button_new_with_label("← Back");
+    gtk_widget_set_size_request(back_btn, 100, 35);
+    g_signal_connect(back_btn, "clicked", G_CALLBACK(show_project_list_screen), NULL);
+    gtk_box_pack_start(GTK_BOX(header_box), back_btn, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(main_box), header_box, FALSE, FALSE, 0);
+
+    // Center container for content
+    GtkWidget *center_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_halign(center_box, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(center_box, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(main_box), center_box, TRUE, TRUE, 0);
+
+    // Content frame for card effect
+    GtkWidget *content_frame = gtk_frame_new(NULL);
+    gtk_frame_set_shadow_type(GTK_FRAME(content_frame), GTK_SHADOW_ETCHED_OUT);
+    gtk_widget_set_size_request(content_frame, 600, 500);
+    gtk_container_add(GTK_CONTAINER(center_box), content_frame);
+
+    // Inner content box
+    GtkWidget *content_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 20);
+    gtk_container_set_border_width(GTK_CONTAINER(content_box), 40);
+    gtk_container_add(GTK_CONTAINER(content_frame), content_box);
+
+    // Title
     GtkWidget *title = gtk_label_new("Settings");
-    PangoFontDescription *font_desc = pango_font_description_from_string("Sans 24");
-    gtk_widget_override_font(title, font_desc);
-    gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 20);
+    PangoFontDescription *title_font = pango_font_description_from_string("Sans Bold 28");
+    gtk_widget_override_font(title, title_font);
+    gtk_widget_set_margin_bottom(title, 30);
+    gtk_box_pack_start(GTK_BOX(content_box), title, FALSE, FALSE, 0);
+
+    // Account section
+    GtkWidget *account_label = gtk_label_new("Account");
+    PangoFontDescription *section_font = pango_font_description_from_string("Sans Bold 16");
+    gtk_widget_override_font(account_label, section_font);
+    gtk_label_set_xalign(GTK_LABEL(account_label), 0);
+    gtk_widget_set_margin_bottom(account_label, 10);
+    gtk_box_pack_start(GTK_BOX(content_box), account_label, FALSE, FALSE, 0);
 
     // User Information button
-    GtkWidget *user_info_btn = gtk_button_new_with_label("👤 User Information");
-    gtk_widget_set_size_request(user_info_btn, 300, 50);
+    GtkWidget *user_info_btn = gtk_button_new_with_label("User Information");
+    gtk_widget_set_size_request(user_info_btn, -1, 50);
     g_signal_connect(user_info_btn, "clicked", G_CALLBACK(on_user_info_clicked), NULL);
-    gtk_box_pack_start(GTK_BOX(box), user_info_btn, FALSE, FALSE, 10);
+    gtk_widget_set_margin_bottom(user_info_btn, 30);
+    gtk_box_pack_start(GTK_BOX(content_box), user_info_btn, FALSE, FALSE, 0);
+
+    // Actions section
+    GtkWidget *actions_label = gtk_label_new("Actions");
+    gtk_widget_override_font(actions_label, section_font);
+    gtk_label_set_xalign(GTK_LABEL(actions_label), 0);
+    gtk_widget_set_margin_bottom(actions_label, 10);
+    gtk_box_pack_start(GTK_BOX(content_box), actions_label, FALSE, FALSE, 0);
 
     // Logout button
-    GtkWidget *logout_btn = gtk_button_new_with_label("🚪 Logout");
-    gtk_widget_set_size_request(logout_btn, 300, 50);
+    GtkWidget *logout_btn = gtk_button_new_with_label("Logout");
+    gtk_widget_set_size_request(logout_btn, -1, 50);
     g_signal_connect(logout_btn, "clicked", G_CALLBACK(on_logout_clicked), NULL);
-    gtk_box_pack_start(GTK_BOX(box), logout_btn, FALSE, FALSE, 10);
+    gtk_box_pack_start(GTK_BOX(content_box), logout_btn, FALSE, FALSE, 0);
 
-    // Back button
-    GtkWidget *back_btn = gtk_button_new_with_label("← Back");
-    g_signal_connect(back_btn, "clicked", G_CALLBACK(show_project_list_screen), NULL);
-    gtk_box_pack_start(GTK_BOX(box), back_btn, FALSE, FALSE, 20);
+    // User info label at bottom
+    GtkWidget *user_info = gtk_label_new("");
+    char user_text[256];
+    snprintf(user_text, sizeof(user_text), "Logged in as: %s",
+             current_username[0] ? current_username : "Guest");
+    gtk_label_set_text(GTK_LABEL(user_info), user_text);
+    PangoFontDescription *small_font = pango_font_description_from_string("Sans 11");
+    gtk_widget_override_font(user_info, small_font);
+    gtk_widget_set_margin_top(user_info, 40);
+    gtk_box_pack_start(GTK_BOX(content_box), user_info, FALSE, FALSE, 0);
+
+    pango_font_description_free(title_font);
+    pango_font_description_free(section_font);
+    pango_font_description_free(small_font);
 
     g_signal_connect(settings_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(settings_window);
@@ -71,20 +127,69 @@ void show_user_info_dialog() {
         "Close", GTK_RESPONSE_CLOSE,
         NULL);
 
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, 300);
+
     GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 20);
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 15);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 30);
     gtk_container_add(GTK_CONTAINER(content_area), box);
 
-    char info_text[512];
-    snprintf(info_text, sizeof(info_text),
-        "Username: %s\nEmail: %s\nPassword: ********",
-        current_username[0] ? current_username : "Not set",
-        current_email[0] ? current_email : "Not set");
+    // Username field
+    GtkWidget *username_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    GtkWidget *username_label = gtk_label_new("Username");
+    PangoFontDescription *label_font = pango_font_description_from_string("Sans Bold 11");
+    gtk_widget_override_font(username_label, label_font);
+    gtk_label_set_xalign(GTK_LABEL(username_label), 0);
 
-    GtkWidget *info_label = gtk_label_new(info_text);
-    gtk_label_set_selectable(GTK_LABEL(info_label), TRUE);
-    gtk_box_pack_start(GTK_BOX(box), info_label, FALSE, FALSE, 10);
+    GtkWidget *username_value = gtk_label_new(current_username[0] ? current_username : "Not set");
+    PangoFontDescription *value_font = pango_font_description_from_string("Sans 13");
+    gtk_widget_override_font(username_value, value_font);
+    gtk_label_set_xalign(GTK_LABEL(username_value), 0);
+    gtk_label_set_selectable(GTK_LABEL(username_value), TRUE);
+
+    gtk_box_pack_start(GTK_BOX(username_box), username_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(username_box), username_value, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), username_box, FALSE, FALSE, 0);
+
+    // Separator
+    GtkWidget *sep1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(box), sep1, FALSE, FALSE, 5);
+
+    // Email field
+    GtkWidget *email_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    GtkWidget *email_label = gtk_label_new("Email");
+    gtk_widget_override_font(email_label, label_font);
+    gtk_label_set_xalign(GTK_LABEL(email_label), 0);
+
+    GtkWidget *email_value = gtk_label_new(current_email[0] ? current_email : "Not set");
+    gtk_widget_override_font(email_value, value_font);
+    gtk_label_set_xalign(GTK_LABEL(email_value), 0);
+    gtk_label_set_selectable(GTK_LABEL(email_value), TRUE);
+
+    gtk_box_pack_start(GTK_BOX(email_box), email_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(email_box), email_value, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), email_box, FALSE, FALSE, 0);
+
+    // Separator
+    GtkWidget *sep2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(box), sep2, FALSE, FALSE, 5);
+
+    // Password field
+    GtkWidget *password_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    GtkWidget *password_label = gtk_label_new("Password");
+    gtk_widget_override_font(password_label, label_font);
+    gtk_label_set_xalign(GTK_LABEL(password_label), 0);
+
+    GtkWidget *password_value = gtk_label_new("••••••••");
+    gtk_widget_override_font(password_value, value_font);
+    gtk_label_set_xalign(GTK_LABEL(password_value), 0);
+
+    gtk_box_pack_start(GTK_BOX(password_box), password_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(password_box), password_value, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), password_box, FALSE, FALSE, 0);
+
+    pango_font_description_free(label_font);
+    pango_font_description_free(value_font);
 
     gtk_widget_show_all(dialog);
     gtk_dialog_run(GTK_DIALOG(dialog));

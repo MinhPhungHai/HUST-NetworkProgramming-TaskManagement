@@ -22,37 +22,136 @@ static void on_add_task_clicked(GtkWidget *widget, gpointer data) {
         "Create", GTK_RESPONSE_ACCEPT,
         NULL);
 
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 550, 650);
+
     GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_container_set_border_width(GTK_CONTAINER(box), 20);
     gtk_container_add(GTK_CONTAINER(content_area), box);
 
-    GtkWidget *label = gtk_label_new("Task Name:");
-    gtk_label_set_xalign(GTK_LABEL(label), 0);
-    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 5);
+    // Task Name
+    GtkWidget *name_label = gtk_label_new("Task Name *");
+    gtk_label_set_xalign(GTK_LABEL(name_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), name_label, FALSE, FALSE, 0);
 
-    GtkWidget *entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Enter task name");
-    gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 5);
+    GtkWidget *name_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(name_entry), "Enter task name");
+    gtk_box_pack_start(GTK_BOX(box), name_entry, FALSE, FALSE, 5);
+
+    // Description
+    GtkWidget *desc_label = gtk_label_new("Description");
+    gtk_label_set_xalign(GTK_LABEL(desc_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), desc_label, FALSE, FALSE, 3);
+
+    GtkWidget *desc_frame = gtk_frame_new(NULL);
+    gtk_frame_set_shadow_type(GTK_FRAME(desc_frame), GTK_SHADOW_IN);
+
+    GtkWidget *desc_text = gtk_text_view_new();
+    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(desc_text), GTK_WRAP_WORD);
+    gtk_widget_set_size_request(desc_text, -1, 70);
+    gtk_container_add(GTK_CONTAINER(desc_frame), desc_text);
+    gtk_box_pack_start(GTK_BOX(box), desc_frame, FALSE, FALSE, 3);
+
+    // Assigned To (People)
+    GtkWidget *people_label = gtk_label_new("Assign To (username or email)");
+    gtk_label_set_xalign(GTK_LABEL(people_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), people_label, FALSE, FALSE, 3);
+
+    GtkWidget *people_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(people_entry), "username or email@example.com");
+    gtk_box_pack_start(GTK_BOX(box), people_entry, FALSE, FALSE, 3);
+
+    // Status
+    GtkWidget *status_label = gtk_label_new("Status");
+    gtk_label_set_xalign(GTK_LABEL(status_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), status_label, FALSE, FALSE, 3);
+
+    GtkWidget *status_combo = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(status_combo), "Not Started");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(status_combo), "In Progress");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(status_combo), "Completed");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(status_combo), 0);
+    gtk_box_pack_start(GTK_BOX(box), status_combo, FALSE, FALSE, 3);
+
+    // Start Date
+    GtkWidget *start_date_label = gtk_label_new("Start Date (YYYY-MM-DD)");
+    gtk_label_set_xalign(GTK_LABEL(start_date_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), start_date_label, FALSE, FALSE, 3);
+
+    GtkWidget *start_date_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(start_date_entry), "2024-01-15");
+    gtk_box_pack_start(GTK_BOX(box), start_date_entry, FALSE, FALSE, 3);
+
+    // Due Date
+    GtkWidget *due_date_label = gtk_label_new("Due Date (YYYY-MM-DD)");
+    gtk_label_set_xalign(GTK_LABEL(due_date_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), due_date_label, FALSE, FALSE, 3);
+
+    GtkWidget *due_date_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(due_date_entry), "2024-01-30");
+    gtk_box_pack_start(GTK_BOX(box), due_date_entry, FALSE, FALSE, 3);
+
+    // File Attachment (optional)
+    GtkWidget *file_label = gtk_label_new("File Path (optional)");
+    gtk_label_set_xalign(GTK_LABEL(file_label), 0);
+    gtk_box_pack_start(GTK_BOX(box), file_label, FALSE, FALSE, 3);
+
+    GtkWidget *file_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(file_entry), "/path/to/file or leave empty");
+    gtk_box_pack_start(GTK_BOX(box), file_entry, FALSE, FALSE, 3);
 
     gtk_widget_show_all(dialog);
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-        const char *task_name = gtk_entry_get_text(GTK_ENTRY(entry));
-        if (strlen(task_name) > 0) {
-            // Add task to table (in real app, send to server)
-            GtkWidget *task_tree = GTK_WIDGET(data);
-            GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(task_tree)));
-            GtkTreeIter iter;
-            gtk_list_store_append(store, &iter);
-            gtk_list_store_set(store, &iter,
-                0, task_name,
-                1, "",
-                2, "",
-                3, "Not Started",
-                4, "",
-                -1);
+        const char *task_name = gtk_entry_get_text(GTK_ENTRY(name_entry));
+
+        if (strlen(task_name) == 0) {
+            GtkWidget *error = gtk_message_dialog_new(GTK_WINDOW(dialog),
+                GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                "Task name is required!");
+            gtk_dialog_run(GTK_DIALOG(error));
+            gtk_widget_destroy(error);
+            gtk_widget_destroy(dialog);
+            return;
         }
+
+        // Get description
+        GtkTextBuffer *desc_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(desc_text));
+        GtkTextIter start, end;
+        gtk_text_buffer_get_bounds(desc_buffer, &start, &end);
+        const char *description = gtk_text_buffer_get_text(desc_buffer, &start, &end, FALSE);
+
+        // Get other fields
+        const char *people = gtk_entry_get_text(GTK_ENTRY(people_entry));
+        const char *status = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(status_combo));
+        const char *start_date = gtk_entry_get_text(GTK_ENTRY(start_date_entry));
+        const char *due_date = gtk_entry_get_text(GTK_ENTRY(due_date_entry));
+        const char *file_path = gtk_entry_get_text(GTK_ENTRY(file_entry));
+
+        // Format deadline display
+        char deadline_display[100] = "";
+        if (strlen(start_date) > 0 && strlen(due_date) > 0) {
+            snprintf(deadline_display, sizeof(deadline_display), "%s to %s", start_date, due_date);
+        } else if (strlen(due_date) > 0) {
+            snprintf(deadline_display, sizeof(deadline_display), "Due: %s", due_date);
+        }
+
+        // Add task to table (in real app, send to server with all fields)
+        GtkWidget *task_tree = GTK_WIDGET(data);
+        GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(task_tree)));
+        GtkTreeIter iter;
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter,
+            0, task_name,
+            1, people[0] ? people : "",
+            2, file_path[0] ? file_path : "",
+            3, status ? status : "Not Started",
+            4, deadline_display,
+            -1);
+
+        // In production: send this data to backend API
+        // POST /api/tasks with: task_name, description, assigned_to, status, start_date, due_date
+        (void)description; // Suppress unused warning for now
     }
 
     gtk_widget_destroy(dialog);
@@ -122,7 +221,7 @@ void show_project_view_screen() {
 
     project_view_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(project_view_window), "Project View - Project Management System");
-    gtk_window_set_default_size(GTK_WINDOW(project_view_window), 1400, 800);
+    gtk_window_set_default_size(GTK_WINDOW(project_view_window), 1500, 850);
     gtk_window_set_position(GTK_WINDOW(project_view_window), GTK_WIN_POS_CENTER);
 
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
