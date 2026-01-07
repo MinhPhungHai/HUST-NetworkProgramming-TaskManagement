@@ -1,0 +1,45 @@
+Database Connection Information
+================================
+
+Database Name: netprog_db
+Username: netprog_user
+Password: netprog_password
+Host: localhost
+Port: 5432
+Schema: netprog
+
+Connection String:
+postgresql://netprog_user:netprog_password@localhost:5432/netprog_db
+
+psql Command:
+psql -U netprog_user -d netprog_db -h localhost
+
+Python (psycopg2):
+conn = psycopg2.connect(
+    dbname="netprog_db",
+    user="netprog_user",
+    password="netprog_password",
+    host="localhost",
+    port="5432"
+)
+
+Java (JDBC):
+String url = "jdbc:postgresql://localhost:5432/netprog_db?currentSchema=netprog";
+Connection conn = DriverManager.getConnection(url, "netprog_user", "netprog_password");
+
+Node.js (pg):
+const pool = new Pool({
+    host: 'localhost',
+    database: 'netprog_db',
+    user: 'netprog_user',
+    password: 'netprog_password'
+});
+
+C (libpq):
+PGconn *conn = PQconnectdb(
+    "host=localhost port=5432 dbname=netprog_db "
+    "user=netprog_user password=netprog_password"
+);
+
+Note: This file is included in git for educational purposes.
+      In production, always keep credentials private!
