@@ -1,0 +1,88 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+
+Table users {
+  user_id varchar(36) [primary key]
+  username varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  phone_number varchar(20) [unique]
+  password_hash varchar(255) [not null]
+  is_verified boolean [default: false]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+Table projects {
+  project_id varchar(36) [primary key]
+  project_name varchar(255) [not null]
+  description text
+  owner_id varchar(36) [not null, ref: > users.user_id]
+  start_date date
+  end_date date
+  status varchar(20) [default: 'planning', note: 'planning, in_progress, completed, on_hold']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+Table project_members {
+  member_id varchar(36) [primary key]
+  project_id varchar(36) [not null, ref: > projects.project_id]
+  user_id varchar(36) [not null, ref: > users.user_id]
+  role varchar(20) [default: 'member', note: 'owner, admin, member, viewer']
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+Table tasks {
+  task_id varchar(36) [primary key]
+  project_id varchar(36) [not null, ref: > projects.project_id]
+  task_name varchar(255) [not null]
+  description text
+  assigned_to varchar(36) [ref: > users.user_id]
+  created_by varchar(36) [not null, ref: > users.user_id]
+  status varchar(20) [default: 'todo', note: 'todo, in_progress, review, completed, blocked']
+  start_date date
+  due_date date
+  completed_at timestamp [null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+Table task_comments {
+  comment_id varchar(36) [primary key]
+  task_id varchar(36) [not null, ref: > tasks.task_id]
+  user_id varchar(36) [not null, ref: > users.user_id]
+  comment_content text [not null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+Table project_chat_log {
+  chat_id varchar(36) [primary key]
+  project_id varchar(36) [not null, ref: > projects.project_id]
+  sender_id varchar(36) [not null, ref: > users.user_id]
+  message_content text [not null]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+Table file_attachments {
+  file_id varchar(36) [primary key]
+  task_id varchar(36) [not null, ref: > tasks.task_id]
+  file_name varchar(255) [not null]
+  file_path varchar(500) [not null]
+  file_size bigint [not null]
+  file_type varchar(100)
+  uploaded_by varchar(36) [not null, ref: > users.user_id]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+
+
+
+Ref: "tasks"."task_id" < "tasks"."created_by"
+
+
+Ref: "tasks"."task_id" < "tasks"."assigned_to"
+

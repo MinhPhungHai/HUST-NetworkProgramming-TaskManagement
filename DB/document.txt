@@ -1,0 +1,120 @@
+
+
+- Phân chia công việc giữa các thành viên (vai trò và nhiệm vụ của mỗi thành viên)
+- Cách các bạn thiết kế giao thức như thế nào ?
+Kiến trúc ứng dụng là gì ? client-server
+Có mấy kiểu thông điệp ?
+Cấu trúc mỗi thông điệp như thế nào ?
+- Các biểu đồ use-case, luồng mô tả ứng dụng của các bạn
+- Các slide mô tả tiến độ công việc kèm theo các hình vẽ hay video minh họa tiến độ
+- Các khó khăn gặp phải (nếu có)
+—-------------------------------------—-------------------------------------—-------------------------------------—----
+1. UC chính:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2. Flow:
+
+Login:
+
+
+
+Sign up:
+
+
+
+View project: CRUD task:
+
+
+
+View project: chat;
+
+
+
+View project: Gantt chart:
+
+
+Manage project: Create
+
+Manage project: Modify
+
+
+3. Main functionalities:
+Login/ Sign up with OTP verification
+View project
+Create new project
+Manage project (change name, description)
+CRUD task in project
+Chat with member in project
+logout
+
+Màn hình mới vào - màn hình login (ảnh minh họa thôi)
+Còn màn hình register thì sẽ có thêm hàng gmail ở giữa username và password
+
+
+Login/ Sign up with OTP verification: 
+Login: nhập username hoặc gmail -> nhập mật khẩu -> Hệ thống gửi OTP đến gmail -> nhập OTP -> login
+Register: nhập username -> gmail -> mật khẩu -> nhập lại mật khẩu (xác nhận lại) -> Hệ thống gửi OTP đến gmail -> nhập OTP -> quay về màn hình login
+
+Sau khi đăng nhập xong sẽ vào giao diện app:
+nó sẽ hiện ra list danh sách project của mình (nếu không có thì in no project found)
+dưới cùng của màn hình sẽ có nút + biểu thị tạo mới project, nút hình người + để kết bạn (nhập username hoặc gmail) và nút setting (optional) => Tổng 2-3 nút
+
+View project:
+Ấn vào project và nó sẽ hiện ra trang mới là biểu đồ Gantt, dưới cùng là danh sách phân chia công việc
+Đồng thời thì sẽ có thêm ô chat để chat với mọi người có trong project
+
+
+Create new project: 
+User ấn dấu + ở màn hình chính để tạo project mới (điền tên project, description và mời người tham gia vào (có thể mời nhiều người hoặc tự tạo một mình)
+User có thể sửa tên project, description các kiểu 
+Người tạo thì username sẽ có dấu * và mọi thành viên có thể thấy (chỉ có người có dấu sao mới được thay đổi tên và description các kiểu của project thôi).
+
+CRUD task:
+Danh sách sẽ là 1 cái bảng gồm 5 cột: task / people (người đảm nhận) / file / status (chưa bắt đầu, đang làm, hoàn thành)/ deadline (khoảng thời gian).
+Danh sách sẽ có nút + trên đầu bảng để tạo task (nhập tên task để tạo)
+Sau khi tạo sẽ tạo ra 1 hàng trong bảng (có 5 cột)
+mới lần đầu tạo thì hàng đó sẽ có mỗi cột task là được điền, còn lại thì chưa có gì và sẽ có nút +  để thêm vào, với cột people thì sẽ chọn bạn trong danh sách mình đã mời vào project bằng cách ấn vào người bạn muốn chọn, cột file cũng có dấu + khi mới tạo task chưa có gì (ấn vào dấu + để đính kèm file - thường thì nó link đến folder ổ đĩa của mình).
+cột status thì lúc đầu là null (chỉ có 3 trạng thái đã liệt kê như trên), user chọn 1 trong 3 trạng thái đó để fill vào cột (kiểu ấn vào để chọn status)
+cột deadline thì mình sẽ có dạng kiểu lịch để mình chọn khoảng thời gian.
+Trường hợp hàng task đã được phân nhiệm vụ các thứ rồi (các ô đã được fill):
+Tên task thì chỉ cần xóa đi và nhập lại tên khác nếu muốn thay đổi
+people thì nếu có người thì vẫn sẽ có nút + ở bên cạnh để add thêm người vào 
+file cũng sẽ có nút + bên cạnh để thêm file nếu muốn 
+status thì chọn lại khi ấn vào ô (nó sẽ hiện ra list 3 lựa chọn cho user để user chọn lại thôi)
+deadline thì cũng vậy (ấn vào sẽ có 1 khoảng lịch xuất hiện để chọn lại khoảng thời gian)
+Trường hợp muốn xóa cái gì thì ngay đầu bảng sẽ có nút Delete, ấn vào nó thì nó sẽ in đậm đỏ lên và chọn để xóa (khi ấn xóa thì có thông báo do you want to delete ….) và có hiện yes no
+
+Chat with member in project:
+User có thể chat với người khác bằng chat log có trong project khi ấn chọn chat
+Ghi lại lịch sử chat log (cần phát triển)
+
+Log out:
+User ở màn hình chính khi vào setting thì có 2 dòng là user information và logout
+Ấn logout sẽ có thông báo hiện lên là “Do you want to logout” và có yes hay no ở dưới, chọn no thì sẽ quay lại màn hình setting, chọn yes thì quay ra màn hình login.
+
+Màn setting (bonus but not main functionality)
+sẽ có 2 dòng là user information và logout
+logout đã nói như trên
+user information thì ấn vào sẽ hiện ra username/ email/ password
+
+
