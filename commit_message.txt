@@ -1,0 +1,31 @@
+feat: Add PostgreSQL database setup with comprehensive documentation
+
+Database Setup:
+- Single setup_database.sh script handles complete installation
+  • Creates database, user, and schema
+  • Configures PostgreSQL authentication automatically
+  • Sets up passwordless access with .pgpass
+  • Creates 11 tables with 38 indexes and 4 triggers
+- load_sample_data.sh provides 100+ test records
+  • 8 users, 6 projects, 20 tasks
+  • Chat messages, comments, notifications
+  • File attachments and friend connections
+
+Database Features:
+- 11 tables: users, projects, tasks, chat, notifications, etc.
+- OTP verification for login/registration
+- Friend/contact system
+- Role-based project collaboration
+- File attachments for tasks
+- Complete referential integrity
+
+Documentation:
+- Consolidated all DB docs into root README.md
+- Step-by-step setup guide
+- Connection examples (Python, Java, Node.js, C)
+- Useful SQL queries
+- Troubleshooting section
+- Security recommendations
+
+Usage:
+cd DB && ./setup_database.sh && ./load_sample_data.sh
