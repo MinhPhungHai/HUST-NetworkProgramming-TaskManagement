@@ -41,4 +41,16 @@ Thumbs.db
 .cache/
 .idea/
 
+# ======================
+# Database credentials
+# ======================
+# Note: db_connection_info.txt is included for educational purposes
+# **/db_connection_info.txt  # Uncomment this in production!
+*.env
+.env.*
+.pgpass
+*.backup
+*.backup.*
+pg_hba.conf.backup*
+
 

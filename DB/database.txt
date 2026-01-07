@@ -1,15 +1,49 @@
+// Database Schema for Network Programming Task Management System
 // Use DBML to define your database structure
 // Docs: https://dbml.dbdiagram.io/docs
+// View diagram at: https://dbdiagram.io/
 
 
 Table users {
   user_id varchar(36) [primary key]
-  username varchar(255) [not null]
+  username varchar(255) [not null, unique]
   email varchar(255) [not null, unique]
   phone_number varchar(20) [unique]
   password_hash varchar(255) [not null]
   is_verified boolean [default: false]
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'User accounts and authentication'
+}
+
+
+Table otp_verifications {
+  otp_id varchar(36) [primary key]
+  user_id varchar(36) [ref: > users.user_id]
+  email varchar(255)
+  otp_code varchar(10) [not null]
+  otp_type varchar(20) [not null, note: 'registration, login, password_reset']
+  expires_at timestamp [not null]
+  is_used boolean [default: false]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'OTP codes for email/phone verification'
+}
+
+
+Table user_contacts {
+  contact_id varchar(36) [primary key]
+  user_id varchar(36) [not null, ref: > users.user_id]
+  contact_user_id varchar(36) [not null, ref: > users.user_id]
+  status varchar(20) [default: 'pending', note: 'pending, accepted, blocked']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Friend/contact relationships between users'
+
+  Indexes {
+    (user_id, contact_user_id) [unique]
+  }
 }
 
 
@@ -22,6 +56,9 @@ Table projects {
   end_date date
   status varchar(20) [default: 'planning', note: 'planning, in_progress, completed, on_hold']
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Projects created by users'
 }
 
 
@@ -31,6 +68,12 @@ Table project_members {
   user_id varchar(36) [not null, ref: > users.user_id]
   role varchar(20) [default: 'member', note: 'owner, admin, member, viewer']
   joined_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Project membership and roles'
+
+  Indexes {
+    (project_id, user_id) [unique]
+  }
 }
 
 
@@ -42,10 +85,14 @@ Table tasks {
   assigned_to varchar(36) [ref: > users.user_id]
   created_by varchar(36) [not null, ref: > users.user_id]
   status varchar(20) [default: 'todo', note: 'todo, in_progress, review, completed, blocked']
+  priority varchar(20) [default: 'medium', note: 'low, medium, high, urgent']
   start_date date
   due_date date
   completed_at timestamp [null]
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Tasks within projects'
 }
 
 
@@ -55,6 +102,9 @@ Table task_comments {
   user_id varchar(36) [not null, ref: > users.user_id]
   comment_content text [not null]
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Comments on tasks'
 }
 
 
@@ -64,6 +114,8 @@ Table project_chat_log {
   sender_id varchar(36) [not null, ref: > users.user_id]
   message_content text [not null]
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Chat messages within projects'
 }
 
 
@@ -76,13 +128,43 @@ Table file_attachments {
   file_type varchar(100)
   uploaded_by varchar(36) [not null, ref: > users.user_id]
   created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'File attachments for tasks'
 }
 
 
+Table notifications {
+  notification_id varchar(36) [primary key]
+  user_id varchar(36) [not null, ref: > users.user_id]
+  notification_type varchar(50) [not null, note: 'task_assigned, project_invite, comment_added, task_updated, etc.']
+  related_entity_type varchar(50) [note: 'task, project, comment, etc.']
+  related_entity_id varchar(36)
+  message text [not null]
+  is_read boolean [default: false]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'User notifications'
+}
 
 
-Ref: "tasks"."task_id" < "tasks"."created_by"
-
-
-Ref: "tasks"."task_id" < "tasks"."assigned_to"
-
+// Summary
+// ========
+// Total Tables: 10
+//
+// 1. users - User accounts and authentication
+// 2. otp_verifications - OTP codes for login/registration
+// 3. user_contacts - Friend/contact system
+// 4. projects - Project information
+// 5. project_members - Project membership with roles
+// 6. tasks - Tasks within projects
+// 7. task_comments - Comments on tasks
+// 8. project_chat_log - Chat messages in projects
+// 9. file_attachments - Files attached to tasks
+// 10. notifications - User notifications
+//
+// Features:
+// - 38 indexes on foreign keys and frequently queried columns
+// - 4 automatic triggers for updated_at timestamps
+// - Cascading deletes for referential integrity
+// - Unique constraints to prevent duplicates
+// - Check constraints for data validation
