@@ -16,6 +16,7 @@
 #include "auth_service.h"
 #include "project_service.h"
 #include "task_service.h"
+#include "comment_service.h"
 #include "chat_service.h"
 #include "file_service.h"
 #include "contact_service.h"
@@ -29,6 +30,7 @@ EmailService* g_email = nullptr;
 AuthService* g_auth = nullptr;
 ProjectService* g_project = nullptr;
 TaskService* g_task = nullptr;
+CommentService* g_comment = nullptr;
 ChatService* g_chat = nullptr;
 FileService* g_file = nullptr;
 ContactService* g_contact = nullptr;
@@ -415,6 +417,58 @@ void handleTask(int socket_fd, MessageType type, const std::string& payload) {
     }
 }
 
+// Handle task comment messages
+void handleTaskComment(int socket_fd, MessageType type, const std::string& payload) {
+    std::string user_id = getCurrentUserId(socket_fd);
+    if (user_id.empty()) {
+        sendError(socket_fd, STATUS_UNAUTHORIZED, "Not logged in");
+        return;
+    }
+
+    JsonParser parser(payload);
+
+    switch(type) {
+        case MSG_GET_TASK_COMMENTS_REQUEST: {
+            std::string task_id = parser.getString("task_id");
+            std::string comments_json;
+            StatusCode status = g_comment->getTaskComments(task_id, user_id, comments_json);
+
+            if (status == STATUS_SUCCESS) {
+                JsonBuilder response;
+                response.add("status", (int)STATUS_SUCCESS)
+                       .addRaw("comments", comments_json);
+
+                sendMessage(socket_fd, MSG_GET_TASK_COMMENTS_RESPONSE, response.build());
+            } else {
+                sendError(socket_fd, status, "Failed to get task comments");
+            }
+            break;
+        }
+
+        case MSG_ADD_TASK_COMMENT_REQUEST: {
+            std::string task_id = parser.getString("task_id");
+            std::string content = parser.getString("content");
+
+            std::string comment_id;
+            StatusCode status = g_comment->addTaskComment(task_id, user_id, content, comment_id);
+
+            if (status == STATUS_SUCCESS) {
+                JsonBuilder response;
+                response.add("status", (int)STATUS_SUCCESS)
+                       .add("comment_id", comment_id);
+
+                sendMessage(socket_fd, MSG_ADD_TASK_COMMENT_RESPONSE, response.build());
+            } else {
+                sendError(socket_fd, status, "Failed to add task comment");
+            }
+            break;
+        }
+
+        default:
+            sendError(socket_fd, STATUS_INVALID_REQUEST, "Unknown comment message type");
+    }
+}
+
 // Handle chat messages
 void handleChat(int socket_fd, MessageType type, const std::string& payload) {
     std::string user_id = getCurrentUserId(socket_fd);
@@ -581,6 +635,8 @@ void handleClient(int client_socket) {
             handleProject(client_socket, type, payload);
         } else if (type >= MSG_GET_TASKS_REQUEST && type <= MSG_DELETE_TASK_RESPONSE) {
             handleTask(client_socket, type, payload);
+        } else if (type >= MSG_GET_TASK_COMMENTS_REQUEST && type <= MSG_ADD_TASK_COMMENT_RESPONSE) {
+            handleTaskComment(client_socket, type, payload);
         } else if (type >= MSG_SEND_CHAT_REQUEST && type <= MSG_GET_CHAT_HISTORY_RESPONSE) {
             handleChat(client_socket, type, payload);
         } else if (type >= MSG_UPLOAD_FILE_REQUEST && type <= MSG_GET_FILES_RESPONSE) {
@@ -612,6 +668,7 @@ int main() {
         g_auth = new AuthService(*g_db, *g_email);
         g_project = new ProjectService(*g_db);
         g_task = new TaskService(*g_db);
+        g_comment = new CommentService(*g_db);
         g_chat = new ChatService(*g_db);
         g_file = new FileService(*g_db);
         g_contact = new ContactService(*g_db);
@@ -675,6 +732,7 @@ int main() {
     delete g_contact;
     delete g_file;
     delete g_chat;
+    delete g_comment;
     delete g_task;
     delete g_project;
     delete g_auth;

@@ -18,6 +18,9 @@ SERVER_TARGET = $(BUILD_DIR)/server
 CLIENT_SRC = $(CLIENT_DIR)/client.cpp
 CLIENT_TARGET = $(BUILD_DIR)/client
 
+# Default target
+.DEFAULT_GOAL := all
+
 # Create build directory
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

@@ -235,12 +235,15 @@ public:
 
     bool updateProject(const std::string& project_id, const std::string& project_name,
                       const std::string& description, const std::string& status,
+                      const std::string& start_date, const std::string& end_date,
                       std::string& response_data) {
         JsonBuilder request;
         request.add("project_id", project_id)
                .add("project_name", project_name)
                .add("description", description)
-               .add("status", status);
+               .add("status", status)
+               .add("start_date", start_date)
+               .add("end_date", end_date);
 
         if (!sendMessage(MSG_UPDATE_PROJECT_REQUEST, request.build())) {
             return false;
@@ -303,14 +306,15 @@ public:
 
     bool createTask(const std::string& project_id, const std::string& task_name,
                    const std::string& description, const std::string& assigned_to,
-                   const std::string& priority, const std::string& due_date,
-                   std::string& response_data) {
+                   const std::string& priority, const std::string& start_date,
+                   const std::string& due_date, std::string& response_data) {
         JsonBuilder request;
         request.add("project_id", project_id)
                .add("task_name", task_name)
                .add("description", description)
                .add("assigned_to", assigned_to)
                .add("priority", priority)
+               .add("start_date", start_date)
                .add("due_date", due_date);
 
         if (!sendMessage(MSG_CREATE_TASK_REQUEST, request.build())) {
@@ -324,7 +328,8 @@ public:
     bool updateTask(const std::string& task_id, const std::string& task_name,
                    const std::string& description, const std::string& assigned_to,
                    const std::string& status, const std::string& priority,
-                   const std::string& due_date, std::string& response_data) {
+                   const std::string& start_date, const std::string& due_date,
+                   std::string& response_data) {
         JsonBuilder request;
         request.add("task_id", task_id)
                .add("task_name", task_name)
@@ -332,6 +337,7 @@ public:
                .add("assigned_to", assigned_to)
                .add("status", status)
                .add("priority", priority)
+               .add("start_date", start_date)
                .add("due_date", due_date);
 
         if (!sendMessage(MSG_UPDATE_TASK_REQUEST, request.build())) {
@@ -347,6 +353,33 @@ public:
         request.add("task_id", task_id);
 
         if (!sendMessage(MSG_DELETE_TASK_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    // Task comment methods
+    bool getTaskComments(const std::string& task_id, std::string& response_data) {
+        JsonBuilder request;
+        request.add("task_id", task_id);
+
+        if (!sendMessage(MSG_GET_TASK_COMMENTS_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    bool addTaskComment(const std::string& task_id, const std::string& content,
+                       std::string& response_data) {
+        JsonBuilder request;
+        request.add("task_id", task_id)
+               .add("content", content);
+
+        if (!sendMessage(MSG_ADD_TASK_COMMENT_REQUEST, request.build())) {
             return false;
         }
 

@@ -2,10 +2,10 @@
 #include <string.h>
 #include <regex.h>
 #include <stdlib.h>
-#include <time.h>
 #include "app_state.h"
 #include "register.h"
 #include "login.h"
+#include "../Client/network_wrapper.h"
 
 static gboolean is_valid_email(const char *email) {
     regex_t regex;
@@ -21,44 +21,6 @@ static gboolean is_valid_email(const char *email) {
     regfree(&regex);
 
     return (ret == 0) ? TRUE : FALSE;
-}
-
-static gboolean send_otp_to_email(const char *email) {
-    // Generate mock 6-digit OTP
-    srand(time(NULL));
-    int otp = 100000 + (rand() % 900000);
-
-    // Store OTP for verification
-    g_snprintf(otp_code, sizeof(otp_code), "%d", otp);
-
-    // Store email for dialog display
-    g_strlcpy(registered_email, email, sizeof(registered_email));
-
-    // DEBUG: Print OTP to console for testing
-    g_print("=== DEBUG: OTP sent to %s: %s ===\n", email, otp_code);
-
-    // Mock API call - always succeeds
-    // TODO: Replace with actual HTTP request to backend API
-    return TRUE;
-}
-
-static gboolean verify_otp_code(const char *otp_input) {
-    // Check if OTP is available and input is not empty
-    if (strlen(otp_code) == 0 || strlen(otp_input) == 0) {
-        return FALSE;
-    }
-
-    // Verify OTP matches
-    gboolean result = (strcmp(otp_code, otp_input) == 0) ? TRUE : FALSE;
-
-    // Clear OTP after verification attempt (security best practice)
-    if (result) {
-        memset(otp_code, 0, sizeof(otp_code));
-        memset(registered_email, 0, sizeof(registered_email));
-    }
-
-    // TODO: Replace with actual HTTP request to backend API
-    return result;
 }
 
 static gboolean show_register_otp_dialog(GtkWidget *parent_window) {
@@ -109,27 +71,54 @@ static gboolean show_register_otp_dialog(GtkWidget *parent_window) {
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
                 // Continue loop to allow retry
-            } else if (verify_otp_code(otp)) {
-                // Registration successful
-                GtkWidget *success_dialog = gtk_message_dialog_new(
-                    GTK_WINDOW(dialog),
-                    GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
-                    "Registration successful! Please login.");
-                gtk_dialog_run(GTK_DIALOG(success_dialog));
-                gtk_widget_destroy(success_dialog);
-
-                gtk_widget_hide(register_window);
-                show_login_screen();
-                success = TRUE;
-                break;
             } else {
+                char response[4096];
+                if (!network_verify_otp(registered_email, otp, "registration", response, sizeof(response))) {
+                    GtkWidget *err = gtk_message_dialog_new(
+                        GTK_WINDOW(dialog),
+                        GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                        "Failed to verify OTP (network error)");
+                    gtk_dialog_run(GTK_DIALOG(err));
+                    gtk_widget_destroy(err);
+                    continue;
+                }
+
+                int status = json_get_status(response);
+                if (status == 0) {
+                    GtkWidget *success_dialog = gtk_message_dialog_new(
+                        GTK_WINDOW(dialog),
+                        GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                        "Registration successful! Please login.");
+                    gtk_dialog_run(GTK_DIALOG(success_dialog));
+                    gtk_widget_destroy(success_dialog);
+
+                    gtk_widget_hide(register_window);
+                    show_login_screen();
+                    success = TRUE;
+                    break;
+                } else if (status == 5) {
+                    GtkWidget *err = gtk_message_dialog_new(
+                        GTK_WINDOW(dialog),
+                        GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                        "Invalid OTP. Please try again.");
+                    gtk_dialog_run(GTK_DIALOG(err));
+                    gtk_widget_destroy(err);
+                } else if (status == 6) {
+                    GtkWidget *err = gtk_message_dialog_new(
+                        GTK_WINDOW(dialog),
+                        GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                        "OTP expired! Please request OTP again.");
+                    gtk_dialog_run(GTK_DIALOG(err));
+                    gtk_widget_destroy(err);
+                    break;
+                } else {
                 GtkWidget *err = gtk_message_dialog_new(
                     GTK_WINDOW(dialog),
                     GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-                    "Invalid OTP. Please try again.");
+                    "OTP verification failed.");
                 gtk_dialog_run(GTK_DIALOG(err));
                 gtk_widget_destroy(err);
-                // Continue loop to allow retry
+                }
             }
         } else {
             // User clicked Cancel
@@ -180,18 +169,44 @@ static void on_register_otp_clicked(GtkWidget *widget, gpointer data) {
         return;
     }
 
+    if (!network_is_connected()) {
+        GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(register_window),
+                                                   GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                   "Not connected to server!\nMake sure server is running on 127.0.0.1:8080");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+        return;
+    }
+
     // Store registration data
     g_strlcpy(current_username, username, sizeof(current_username));
     g_strlcpy(current_email, email, sizeof(current_email));
 
-    // Send OTP to email
-    if (!send_otp_to_email(email)) {
+    char response[4096];
+    if (!network_register(username, email, password, response, sizeof(response))) {
         GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(register_window),
                                                    GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-                                                   "Failed to send OTP. Please try again.");
+                                                   "Failed to send registration request (network error).");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
         return;
+    }
+
+    int status = json_get_status(response);
+    if (status != 0) {
+        GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(register_window),
+                                                   GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                   "Registration failed. Please check your info.");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+        return;
+    }
+
+    char server_email[256] = "";
+    if (json_get_string(response, "email", server_email, sizeof(server_email))) {
+        g_strlcpy(registered_email, server_email, sizeof(registered_email));
+    } else {
+        g_strlcpy(registered_email, email, sizeof(registered_email));
     }
 
     // Show OTP dialog
@@ -209,7 +224,7 @@ void show_register_screen() {
 
     register_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(register_window), "Register - Project Management System");
-    gtk_window_set_default_size(GTK_WINDOW(register_window), 700, 750);
+    gtk_window_set_default_size(GTK_WINDOW(register_window), 620, 650);
     gtk_window_set_position(GTK_WINDOW(register_window), GTK_WIN_POS_CENTER);
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);

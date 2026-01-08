@@ -138,13 +138,13 @@ int network_create_project(const char* name, const char* description, char* resp
     return 1;
 }
 
-int network_update_project(const char* project_id, const char* name, const char* description, const char* status, char* response, int response_size) {
+int network_update_project(const char* project_id, const char* name, const char* description, const char* status, const char* start_date, const char* end_date, char* response, int response_size) {
     if (g_network == nullptr) {
         return 0;
     }
 
     std::string resp;
-    if (!g_network->updateProject(project_id, name, description, status, resp)) {
+    if (!g_network->updateProject(project_id, name, description, status, start_date, end_date, resp)) {
         return 0;
     }
 
@@ -183,6 +183,21 @@ int network_get_project_details(const char* project_id, char* response, int resp
     return 1;
 }
 
+int network_invite_to_project(const char* project_id, const char* invitee, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->inviteToProject(project_id, invitee, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
 int network_get_tasks(const char* project_id, char* response, int response_size) {
     if (g_network == nullptr) {
         return 0;
@@ -198,13 +213,13 @@ int network_get_tasks(const char* project_id, char* response, int response_size)
     return 1;
 }
 
-int network_create_task(const char* project_id, const char* name, const char* description, const char* assigned_to, const char* priority, const char* due_date, char* response, int response_size) {
+int network_create_task(const char* project_id, const char* name, const char* description, const char* assigned_to, const char* priority, const char* start_date, const char* due_date, char* response, int response_size) {
     if (g_network == nullptr) {
         return 0;
     }
 
     std::string resp;
-    if (!g_network->createTask(project_id, name, description, assigned_to, priority, due_date, resp)) {
+    if (!g_network->createTask(project_id, name, description, assigned_to, priority, start_date, due_date, resp)) {
         return 0;
     }
 
@@ -213,13 +228,13 @@ int network_create_task(const char* project_id, const char* name, const char* de
     return 1;
 }
 
-int network_update_task(const char* task_id, const char* name, const char* description, const char* assigned_to, const char* status, const char* priority, const char* due_date, char* response, int response_size) {
+int network_update_task(const char* task_id, const char* name, const char* description, const char* assigned_to, const char* status, const char* priority, const char* start_date, const char* due_date, char* response, int response_size) {
     if (g_network == nullptr) {
         return 0;
     }
 
     std::string resp;
-    if (!g_network->updateTask(task_id, name, description, assigned_to, status, priority, due_date, resp)) {
+    if (!g_network->updateTask(task_id, name, description, assigned_to, status, priority, start_date, due_date, resp)) {
         return 0;
     }
 
@@ -235,6 +250,36 @@ int network_delete_task(const char* task_id, char* response, int response_size) 
 
     std::string resp;
     if (!g_network->deleteTask(task_id, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_get_task_comments(const char* task_id, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->getTaskComments(task_id, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_add_task_comment(const char* task_id, const char* content, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->addTaskComment(task_id, content, resp)) {
         return 0;
     }
 
@@ -265,6 +310,36 @@ int network_get_chat_history(const char* project_id, int limit, char* response, 
 
     std::string resp;
     if (!g_network->getChatHistory(project_id, limit, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_upload_file(const char* task_id, const char* file_name, const char* file_path, const char* file_type, int file_size, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->uploadFile(task_id, file_name, file_path, file_type, file_size, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_get_files(const char* task_id, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->getFiles(task_id, resp)) {
         return 0;
     }
 

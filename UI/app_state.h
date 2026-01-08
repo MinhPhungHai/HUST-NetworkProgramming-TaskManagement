@@ -17,6 +17,7 @@ extern int is_project_owner;
 extern char otp_code[10];           // Stores generated OTP
 extern char registered_email[256];  // Stores email for dialog display
 extern char current_project_id[256];  // Current project ID
+extern char current_project_name[256];
 
 // Network functions
 int app_network_init();

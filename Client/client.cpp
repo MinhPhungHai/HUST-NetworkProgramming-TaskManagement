@@ -281,7 +281,7 @@ void handleCreateTask() {
         g_session.setCurrentProject(project_id);
     }
 
-    string name, description, priority, due_date;
+    string name, description, priority, due_date, start_date;
 
     cout << "\n=== CREATE TASK ===" << endl;
     cin.ignore();
@@ -291,13 +291,15 @@ void handleCreateTask() {
     getline(cin, description);
     cout << "Priority (low/medium/high/urgent): ";
     cin >> priority;
+    cout << "Start date (YYYY-MM-DD) or blank: ";
+    cin >> start_date;
     cout << "Due date (YYYY-MM-DD): ";
     cin >> due_date;
 
     string response;
     cout << "Creating task..." << endl;
 
-    if (!g_network.createTask(project_id, name, description, "", priority, due_date, response)) {
+    if (!g_network.createTask(project_id, name, description, "", priority, start_date, due_date, response)) {
         cout << "ERROR: Failed to create task!" << endl;
         return;
     }
@@ -331,7 +333,7 @@ void handleUpdateTaskStatus() {
     string response;
     cout << "Updating task..." << endl;
 
-    if (!g_network.updateTask(task_id, "", "", "", new_status, "", "", response)) {
+    if (!g_network.updateTask(task_id, "", "", "", new_status, "", "", "", response)) {
         cout << "ERROR: Failed to update task!" << endl;
         return;
     }

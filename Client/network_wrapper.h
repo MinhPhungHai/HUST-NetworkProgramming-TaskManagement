@@ -29,19 +29,26 @@ int network_logout(char* response, int response_size);
 // Project functions
 int network_get_projects(char* response, int response_size);
 int network_create_project(const char* name, const char* description, char* response, int response_size);
-int network_update_project(const char* project_id, const char* name, const char* description, const char* status, char* response, int response_size);
+int network_update_project(const char* project_id, const char* name, const char* description, const char* status, const char* start_date, const char* end_date, char* response, int response_size);
 int network_delete_project(const char* project_id, char* response, int response_size);
 int network_get_project_details(const char* project_id, char* response, int response_size);
+int network_invite_to_project(const char* project_id, const char* invitee, char* response, int response_size);
 
 // Task functions
 int network_get_tasks(const char* project_id, char* response, int response_size);
-int network_create_task(const char* project_id, const char* name, const char* description, const char* assigned_to, const char* priority, const char* due_date, char* response, int response_size);
-int network_update_task(const char* task_id, const char* name, const char* description, const char* assigned_to, const char* status, const char* priority, const char* due_date, char* response, int response_size);
+int network_create_task(const char* project_id, const char* name, const char* description, const char* assigned_to, const char* priority, const char* start_date, const char* due_date, char* response, int response_size);
+int network_update_task(const char* task_id, const char* name, const char* description, const char* assigned_to, const char* status, const char* priority, const char* start_date, const char* due_date, char* response, int response_size);
 int network_delete_task(const char* task_id, char* response, int response_size);
+int network_get_task_comments(const char* task_id, char* response, int response_size);
+int network_add_task_comment(const char* task_id, const char* content, char* response, int response_size);
 
 // Chat functions
 int network_send_chat(const char* project_id, const char* message, char* response, int response_size);
 int network_get_chat_history(const char* project_id, int limit, char* response, int response_size);
+
+// File functions
+int network_upload_file(const char* task_id, const char* file_name, const char* file_path, const char* file_type, int file_size, char* response, int response_size);
+int network_get_files(const char* task_id, char* response, int response_size);
 
 // Contact functions
 int network_add_contact(const char* contact, char* response, int response_size);

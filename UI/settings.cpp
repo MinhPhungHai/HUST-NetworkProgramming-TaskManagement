@@ -4,13 +4,32 @@
 #include "settings.h"
 #include "login.h"
 #include "project_list.h"
+#include "../Client/network_wrapper.h"
 
 static void on_logout_confirm(GtkWidget *widget, gint response_id, gpointer data) {
     if (response_id == GTK_RESPONSE_YES) {
+        char response[4096];
+        if (network_logout(response, sizeof(response))) {
+            if (json_get_status(response) != 0) {
+                GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(settings_window),
+                                                           GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                           "Logout failed on server.");
+                gtk_dialog_run(GTK_DIALOG(dialog));
+                gtk_widget_destroy(dialog);
+            }
+        }
+
+        current_username[0] = '\0';
+        current_email[0] = '\0';
+        current_user_id[0] = '\0';
+        current_project_id[0] = '\0';
+        current_project_name[0] = '\0';
         gtk_widget_hide(settings_window);
         gtk_widget_hide(project_list_window);
         show_login_screen();
     }
+
+    gtk_widget_destroy(widget);
 }
 
 static void on_logout_clicked(GtkWidget *widget, gpointer data) {
@@ -31,7 +50,7 @@ void show_settings_screen() {
 
     settings_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(settings_window), "Settings - Project Management System");
-    gtk_window_set_default_size(GTK_WINDOW(settings_window), 1500, 850);
+    gtk_window_set_default_size(GTK_WINDOW(settings_window), 1200, 720);
     gtk_window_set_position(GTK_WINDOW(settings_window), GTK_WIN_POS_CENTER);
 
     // Main container with centered alignment

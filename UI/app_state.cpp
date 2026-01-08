@@ -17,6 +17,7 @@ int is_project_owner = 0;
 char otp_code[10] = "";
 char registered_email[256] = "";
 char current_project_id[256] = "";
+char current_project_name[256] = "";
 
 int app_network_init() {
     // Initialize and connect to server at localhost:8080
