@@ -1,496 +1,853 @@
-# WorkApp – Network Programming Project
+# Task Management Application - Complete Guide
 
-Task Management Application with PostgreSQL Database
-
----
-
-## 📋 Overview
-
-**WorkApp** is a project management application built using a **client-server architecture** with **TCP socket programming**. This repository contains the complete PostgreSQL database setup with automated installation scripts.
-
-### Features
-
-- User authentication with OTP email verification
-- Project creation and management
-- Task assignment and tracking with multiple statuses
-- Real-time chat within projects
-- File attachments for tasks
-- Friend/contact system
-- User notifications
-- Role-based access control (owner, admin, member, viewer)
+**Network Programming Final Project - Client-Server TCP Socket Application**
 
 ---
 
-## 🚀 Quick Database Setup
+## 📋 Table of Contents
 
-### Prerequisites
+1. [Quick Demo Setup](#quick-demo-setup-3-terminals)
+2. [What's Implemented](#whats-implemented)
+3. [Demo Script](#complete-demo-script)
+4. [Client Menu Reference](#client-menu-reference)
+5. [How It Works](#how-it-works)
+6. [API Reference (For Your UI)](#api-reference-for-your-ui)
+7. [Troubleshooting](#troubleshooting)
 
+---
+
+## Quick Demo Setup (3 Terminals)
+
+### ✅ What's Ready:
+- Server executable: `build/server` ✅
+- Client executable: `build/client` ✅
+- Database: PostgreSQL configured ✅
+- Hardcoded: `127.0.0.1:8080` (localhost) ✅
+
+### 🚀 Run Your Demo:
+
+**Terminal 1 - Start Server:**
 ```bash
-# Install PostgreSQL
-sudo apt update
-sudo apt install postgresql postgresql-contrib
+cd ~/NetworkProgrammingFinalProject/HUST-NetworkProgramming-TaskManagement
+./build/server
 ```
 
-### Setup (2 commands)
-
-```bash
-cd DB
-
-# 1. Setup database (creates everything)
-./setup_database.sh
-
-# 2. Load sample data (optional, for testing)
-./load_sample_data.sh
+**Expected Output:**
+```
+===== Task Management Server =====
+Database connected successfully
+Server listening on port 8080
 ```
 
-That's it! Your database is ready.
+**Terminal 2 - Start Client 1:**
+```bash
+cd ~/NetworkProgrammingFinalProject/HUST-NetworkProgramming-TaskManagement
+./build/client
+```
+
+**Terminal 3 - Start Client 2:**
+```bash
+cd ~/NetworkProgrammingFinalProject/HUST-NetworkProgramming-TaskManagement
+./build/client
+```
+
+**🎉 You now have 1 server + 2 clients running!**
+
+### ⚠️ Critical Notes:
+
+1. **OTP codes appear in SERVER terminal (Terminal 1)** - Keep it visible!
+2. Both clients need the **same PROJECT ID** to collaborate
+3. Use menu option **3** to get your project IDs
+4. Server **must be running** before starting clients
+
+### 🧪 Test Accounts (Optional):
+
+If you ran `./DB/load_sample_data.sh`:
+- **Username:** `john_doe`, **Password:** `password123`
+- **Username:** `jane_smith`, **Password:** `password123`
+
+Otherwise, just register new accounts during demo!
 
 ---
 
-## 📊 Database Details
+## What's Implemented
 
-### Created Resources
+### ✅ Complete Features:
 
+**Server (Multi-threaded TCP):**
+- ✅ Handles multiple clients simultaneously
+- ✅ Binary protocol with JSON payloads
+- ✅ PostgreSQL database (10 tables)
+- ✅ Session management
+- ✅ Message logging
+
+**Authentication:**
+- ✅ User registration
+- ✅ Login with credentials
+- ✅ OTP verification (printed to server terminal)
+- ✅ Password hashing (SHA256)
+- ✅ Session tracking
+
+**Project Management:**
+- ✅ Create projects
+- ✅ Update project details
+- ✅ View user's projects
+- ✅ Invite members
+- ✅ Owner permissions
+
+**Task Management:**
+- ✅ Create tasks with deadlines
+- ✅ Assign tasks to users
+- ✅ Update task status (todo/in_progress/completed)
+- ✅ Set priority (low/medium/high/urgent)
+- ✅ Delete tasks
+
+**Chat:**
+- ✅ Send messages in projects
+- ✅ View chat history
+- ✅ Real-time messaging
+
+**Contacts:**
+- ✅ Add friends
+- ✅ View contact list
+
+**Files:**
+- ✅ Upload file metadata
+- ✅ View task files
+
+### 🔧 Configuration:
+
+All hardcoded for localhost demo:
+- **Server IP:** `127.0.0.1`
+- **Server Port:** `8080`
 - **Database:** `netprog_db`
-- **User:** `netprog_user`
-- **Password:** `netprog_password` (change in production!)
-- **Schema:** `netprog`
-
-### Database Schema (10 Tables)
-
-```
-users                    # User accounts and authentication
-├── otp_verifications    # OTP codes for login/registration
-├── user_contacts        # Friend/contact relationships
-├── notifications        # User notifications
-└── projects             # User's projects
-    ├── project_members  # Project members with roles
-    ├── project_chat_log # Project chat messages
-    └── tasks            # Tasks within projects
-        ├── task_comments      # Comments on tasks
-        └── file_attachments   # File attachments
-```
-
-### Performance Features
-
-- ✅ **38 indexes** on foreign keys and frequently queried columns
-- ✅ **4 automatic triggers** for timestamp updates
-- ✅ **Foreign key constraints** with proper cascading deletes
-- ✅ **Check constraints** for data validation
-- ✅ **Unique constraints** to prevent duplicates
+- **DB User:** `netprog_user`
+- **DB Password:** `netprog_password`
 
 ---
 
-## 🔌 Connecting to the Database
+## Complete Demo Script
 
-### psql Command Line
+### Demo Scenario: Two Users Collaborating on a Project
 
-```bash
-psql -U netprog_user -d netprog_db -h localhost
+## 👤 USER 1: John (Terminal 2)
+
+**1. Start Client:**
+```
+(Already running: ./build/client)
 ```
 
-Once connected:
-```sql
--- Set the schema
+**2. Register (if no test accounts):**
+```
+Choose option: 1
+Username: john
+Email: john@example.com
+Password: password123
+```
+
+**Watch Terminal 1 (server) for OTP:**
+```
+========== EMAIL SERVICE ==========
+OTP Code: 123456
+===================================
+```
+Enter the OTP when prompted.
+
+**3. Login:**
+```
+Choose option: 2
+Username: john
+Password: password123
+```
+Check server terminal for OTP and enter it.
+
+**4. Create a Project:**
+```
+Choose option: 4
+Project name: Final Project
+Description: Network Programming Final Project
+```
+
+**Note the project ID printed!** (e.g., `proj-12345678-abcd-...`)
+
+**5. Create First Task:**
+```
+Choose option: 6
+Task name: Implement Server
+Description: Build TCP server with socket programming
+Priority: high
+Due date: 2024-12-31
+```
+
+**6. Send Chat Message:**
+```
+Choose option: 8
+Message: Hey! I just created our project and first task.
+```
+
+---
+
+## 👤 USER 2: Jane (Terminal 3)
+
+**1. Start Client:**
+```
+(Already running: ./build/client)
+```
+
+**2. Register:**
+```
+Choose option: 1
+Username: jane
+Email: jane@example.com
+Password: password123
+```
+Check server terminal for OTP and enter it.
+
+**3. Login:**
+```
+Choose option: 2
+Username: jane
+Password: password123
+```
+Check server terminal for OTP and enter it.
+
+**4. View Chat (use John's project ID):**
+```
+Choose option: 9
+Enter project ID: proj-12345678-abcd-...  (copy from John's screen)
+```
+
+**You'll see John's message!** ✨
+
+**5. Reply in Chat:**
+```
+Choose option: 8
+Message: Hi John! I'll work on the client side.
+```
+
+**6. Create Second Task:**
+```
+Choose option: 6
+Task name: Implement Client
+Description: Build client with network manager
+Priority: high
+Due date: 2024-12-31
+```
+
+---
+
+## 🔄 Show Real-Time Updates
+
+### Switch to Terminal 2 (John):
+
+**View Updated Chat:**
+```
+Choose option: 9
+```
+**You'll see Jane's reply!** ✨
+
+**View All Tasks:**
+```
+Choose option: 5
+```
+**You'll see both tasks!** (John's and Jane's)
+
+**Update Task Status:**
+```
+Choose option: 7
+Task ID: task-xxxxx  (from your task)
+New status: in_progress
+```
+
+---
+
+### Switch to Terminal 3 (Jane):
+
+**View Tasks Again:**
+```
+Choose option: 5
+```
+**You'll see John's task is now "in_progress"!** ✨
+
+**Add John as Contact:**
+```
+Choose option: 10
+Username or email: john
+```
+
+**Mark Your Task Complete:**
+```
+Choose option: 7
+Task ID: task-xxxxx  (your task)
+New status: completed
+```
+
+---
+
+### Switch Back to Terminal 2 (John):
+
+**View Projects:**
+```
+Choose option: 3
+```
+See your project listed.
+
+**View Tasks Again:**
+```
+Choose option: 5
+```
+**Both tasks updated!** John's is in_progress, Jane's is completed! ✨
+
+---
+
+## Client Menu Reference
+
+When you run `./build/client`, you'll see this menu:
+
+```
+========================================
+  Logged in as: [username] (or "Not logged in")
+========================================
+1.  Register               - Create new account
+2.  Login                  - Login with credentials
+3.  Get My Projects        - View all your projects
+4.  Create Project         - Create new project
+5.  Get Tasks              - View tasks for current project
+6.  Create Task            - Create new task
+7.  Update Task Status     - Change task status
+8.  Send Chat Message      - Send message in project
+9.  View Chat History      - View project chat
+10. Add Contact            - Add friend
+11. View Contacts          - View your contacts
+12. Logout                 - Logout
+0.  Exit                   - Close client
+========================================
+Choose option:
+```
+
+### Menu Details:
+
+**Option 1 - Register:**
+- Enter: username, email, password
+- **Watch server terminal for OTP code!**
+- Enter OTP when prompted
+
+**Option 2 - Login:**
+- Enter: username, password
+- **Watch server terminal for OTP code!**
+- Enter OTP when prompted
+- After successful login, you can use all other features
+
+**Option 3 - Get My Projects:**
+- Shows all projects you own or are a member of
+- Displays raw JSON response
+- **Copy the project_id from output to use in other options**
+
+**Option 4 - Create Project:**
+- Enter: project name, description
+- **Save the project ID shown after creation!**
+- The project ID is automatically set as current project
+
+**Option 5 - Get Tasks:**
+- If no current project, asks for project ID
+- Shows all tasks in the project
+- Displays raw JSON response
+
+**Option 6 - Create Task:**
+- Enter: task name, description, priority, due date
+- Priority: `low`, `medium`, `high`, or `urgent`
+- Due date format: `YYYY-MM-DD` (e.g., `2024-12-31`)
+- Task is created in current project
+
+**Option 7 - Update Task Status:**
+- Enter: task ID, new status
+- Status: `todo`, `in_progress`, `completed`, `in_review`, or `blocked`
+- Get task ID from option 5 output
+
+**Option 8 - Send Chat Message:**
+- Enter: message text
+- Sends to current project's chat
+- All project members can see it
+
+**Option 9 - View Chat History:**
+- Shows last 50 messages in project
+- Displays: sender name, message, timestamp
+- Ordered chronologically
+
+**Option 10 - Add Contact:**
+- Enter: username or email
+- Adds user as contact (friend)
+
+**Option 11 - View Contacts:**
+- Shows all your contacts
+- Displays: username, email, status
+
+**Option 12 - Logout:**
+- Clears your session
+- Back to not logged in
+
+**Option 0 - Exit:**
+- Closes the client program
+
+---
+
+## How It Works
+
+### Architecture:
+
+```
+┌──────────────┐         TCP Socket (Port 8080)         ┌──────────────┐
+│              │         Binary Protocol + JSON          │              │
+│  Client 1    │◄─────────────────────────────────────►│    Server    │
+│  (Terminal)  │                                         │  (Terminal)  │
+│              │                                         │              │
+└──────────────┘                                         │              │
+                                                         │              │
+┌──────────────┐                                         │              │
+│              │                                         │              │
+│  Client 2    │◄─────────────────────────────────────►│              │
+│  (Terminal)  │         TCP Socket (Port 8080)         │              │
+│              │         Binary Protocol + JSON          │              │
+└──────────────┘                                         └──────┬───────┘
+                                                                │
+                                                                │
+                                                                ▼
+                                                       ┌─────────────────┐
+                                                       │   PostgreSQL    │
+                                                       │    Database     │
+                                                       │                 │
+                                                       │  - Users        │
+                                                       │  - Projects     │
+                                                       │  - Tasks        │
+                                                       │  - Chat Logs    │
+                                                       │  - Contacts     │
+                                                       └─────────────────┘
+```
+
+### How Messages Work:
+
+1. **Client sends request:**
+   - Header (16 bytes): type, size, version
+   - Payload (JSON): {"username":"john", "password":"pass"}
+
+2. **Server processes:**
+   - Routes to appropriate service (auth, project, task, etc.)
+   - Queries database
+   - Generates response
+
+3. **Server sends response:**
+   - Header (16 bytes): type, size, version
+   - Payload (JSON): {"status":0, "user_id":"...", "username":"john"}
+
+4. **Client displays result:**
+   - Parses JSON response
+   - Shows success/error to user
+
+### Protocol Example (Login):
+
+```
+Client -> Server:
+  Type: MSG_LOGIN_REQUEST
+  {"username":"john","password":"password123"}
+
+Server -> Client:
+  Type: MSG_LOGIN_RESPONSE
+  {"status":0,"user_id":"user-001","email":"john@example.com"}
+
+Client -> Server:
+  Type: MSG_OTP_VERIFY_REQUEST
+  {"email":"john@example.com","otp_code":"123456","otp_type":"login"}
+
+Server -> Client:
+  Type: MSG_OTP_VERIFY_RESPONSE
+  {"status":0,"user_id":"user-001","username":"john","email":"john@example.com"}
+```
+
+---
+
+## API Reference (For Your UI)
+
+If you want to integrate the backend with your custom UI instead of the terminal client:
+
+### Include Headers:
+
+```cpp
+#include "Client/network_manager.h"
+#include "Client/session_manager.h"
+#include "Common/protocol.h"
+#include "Common/json_helper.h"
+```
+
+### Create Instances:
+
+```cpp
+NetworkManager g_network("127.0.0.1", 8080);
+SessionManager g_session;
+```
+
+### Connect and Login:
+
+```cpp
+// Connect to server
+if (!g_network.connect()) {
+    std::cout << "Cannot connect!" << std::endl;
+    return;
+}
+
+// Login
+std::string response;
+g_network.login("john", "password123", response);
+
+// Parse response
+JsonParser parser(response);
+std::string email = parser.getString("email");
+
+// Verify OTP
+g_network.verifyOTP(email, "123456", "login", response);
+
+// Save session
+parser = JsonParser(response);
+UserInfo user;
+user.user_id = parser.getString("user_id");
+user.username = parser.getString("username");
+user.email = parser.getString("email");
+g_session.setCurrentUser(user);
+```
+
+### Available Methods:
+
+**Authentication:**
+```cpp
+bool registerUser(username, email, password, response);
+bool login(username, password, response);
+bool verifyOTP(email, otp_code, otp_type, response);
+bool logout(response);
+```
+
+**Projects:**
+```cpp
+bool getProjects(response);
+bool createProject(name, description, response);
+bool updateProject(id, name, description, status, response);
+bool deleteProject(id, response);
+bool getProjectDetails(id, response);
+bool inviteToProject(project_id, username, response);
+```
+
+**Tasks:**
+```cpp
+bool getTasks(project_id, response);
+bool createTask(project_id, name, desc, assigned_to, priority, due_date, response);
+bool updateTask(id, name, desc, assigned_to, status, priority, due_date, response);
+bool deleteTask(id, response);
+```
+
+**Chat:**
+```cpp
+bool sendChatMessage(project_id, message, response);
+bool getChatHistory(project_id, limit, response);
+```
+
+**Contacts:**
+```cpp
+bool addContact(username_or_email, response);
+bool getContacts(response);
+```
+
+**Files:**
+```cpp
+bool uploadFile(task_id, name, path, type, size, response);
+bool getFiles(task_id, response);
+```
+
+---
+
+## Troubleshooting
+
+### Problem: Server won't start
+
+**Error:** `Cannot bind socket` or `Address already in use`
+
+**Solution:**
+```bash
+# Check if something is on port 8080
+lsof -i :8080
+
+# Kill it if needed
+sudo kill <PID>
+
+# Or restart server
+pkill server
+./build/server
+```
+
+**Error:** `Database connection failed`
+
+**Solution:**
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+sudo systemctl start postgresql
+
+# Re-setup database if needed
+cd DB
+./setup_database.sh
+cd ..
+```
+
+---
+
+### Problem: Client can't connect
+
+**Error:** `Cannot connect to server!`
+
+**Solution:**
+1. Make sure server is running:
+   ```bash
+   ps aux | grep server
+   ```
+
+2. If not running:
+   ```bash
+   ./build/server
+   ```
+
+3. Check server shows "Server listening on port 8080"
+
+---
+
+### Problem: OTP issues
+
+**Issue:** Can't see OTP code
+
+**Solution:**
+- OTP is printed in **SERVER terminal (Terminal 1)**
+- Look for this output:
+  ```
+  ========== EMAIL SERVICE ==========
+  OTP Code: 123456
+  ===================================
+  ```
+- **Keep Terminal 1 visible during demo!**
+
+**Issue:** Invalid OTP error
+
+**Solution:**
+- OTP expires in 10 minutes
+- Each OTP can only be used once
+- Make sure you're using the most recent OTP from server terminal
+
+---
+
+### Problem: Can't find project ID
+
+**Solution:**
+```
+In client, choose option: 3 (Get My Projects)
+Look at the output, find: "project_id":"proj-xxxxx..."
+Copy that entire ID (it's a UUID)
+Use it in option 5, 8, or 9
+```
+
+---
+
+### Problem: Need to start fresh
+
+**Solution:**
+```bash
+# Stop everything
+pkill server
+pkill client
+
+# Reset database
+cd DB
+./setup_database.sh
+./load_sample_data.sh  # Optional
+cd ..
+
+# Restart
+./build/server
+```
+
+---
+
+### Problem: Compilation errors
+
+**Solution:**
+```bash
+# Install dependencies
+sudo apt update
+sudo apt install g++ libpq-dev libssl-dev postgresql
+
+# Clean and rebuild
+make clean
+make all
+```
+
+---
+
+## Quick Commands Reference
+
+### Build:
+```bash
+make all          # Build both server and client
+make server       # Build server only
+make client       # Build client only
+make clean        # Clean build files
+```
+
+### Run:
+```bash
+./build/server    # Run server
+./build/client    # Run client (in another terminal)
+```
+
+### Check Status:
+```bash
+ps aux | grep server    # Check if server is running
+ps aux | grep client    # Check if clients are running
+lsof -i :8080           # Check what's on port 8080
+```
+
+### Logs:
+```bash
+tail -f server.log      # Watch server log
+tail -f client.log      # Watch client log
+cat server.log          # View full server log
+```
+
+### Database:
+```bash
+# Connect to database
+psql -U netprog_user -d netprog_db -h localhost
+# Password: netprog_password
+
+# Inside psql:
 SET search_path TO netprog;
-
--- List all tables
-\dt
-
--- View table structure
-\d users
-\d tasks
-\d projects
-
--- Sample queries
 SELECT * FROM users;
 SELECT * FROM projects;
 SELECT * FROM tasks;
+SELECT * FROM project_chat_log;
+\q
 ```
 
-### Connection String
-
-```
-postgresql://netprog_user:netprog_password@localhost:5432/netprog_db
-```
-
-### Python (psycopg2)
-
-```python
-import psycopg2
-
-conn = psycopg2.connect(
-    dbname="netprog_db",
-    user="netprog_user",
-    password="netprog_password",
-    host="localhost",
-    port="5432"
-)
-
-# Set schema
-cur = conn.cursor()
-cur.execute("SET search_path TO netprog;")
-
-# Query
-cur.execute("SELECT * FROM users;")
-users = cur.fetchall()
-```
-
-### Java (JDBC)
-
-```java
-String url = "jdbc:postgresql://localhost:5432/netprog_db?currentSchema=netprog";
-String user = "netprog_user";
-String password = "netprog_password";
-
-Connection conn = DriverManager.getConnection(url, user, password);
-
-// Query
-Statement stmt = conn.createStatement();
-ResultSet rs = stmt.executeQuery("SELECT * FROM users");
-```
-
-### Node.js (pg)
-
-```javascript
-const { Pool } = require('pg');
-
-const pool = new Pool({
-    host: 'localhost',
-    port: 5432,
-    database: 'netprog_db',
-    user: 'netprog_user',
-    password: 'netprog_password'
-});
-
-// Set schema
-await pool.query('SET search_path TO netprog');
-
-// Query
-const result = await pool.query('SELECT * FROM users');
-console.log(result.rows);
-```
-
-### C (libpq)
-
-```c
-#include <libpq-fe.h>
-
-PGconn *conn = PQconnectdb(
-    "host=localhost port=5432 dbname=netprog_db "
-    "user=netprog_user password=netprog_password"
-);
-
-// Set schema
-PQexec(conn, "SET search_path TO netprog;");
-
-// Query
-PGresult *res = PQexec(conn, "SELECT * FROM users");
-```
-
----
-
-## 📦 Sample Data
-
-The `load_sample_data.sh` script provides realistic test data:
-
-### Users (8 accounts)
-- john_doe, jane_smith, mike_wilson, sarah_johnson, david_brown, emily_davis, alex_nguyen, lisa_tran
-- All passwords: `password123` (bcrypt hashed)
-
-### Projects (6 projects)
-- Network Programming Final Project (in_progress)
-- E-Commerce Website (in_progress)
-- Fitness Tracking App (planning)
-- Database Migration Tool (completed)
-- Image Recognition System (planning)
-- Personal Portfolio Website (on_hold)
-
-### Tasks (20 tasks)
-- 5 completed
-- 6 in progress
-- 6 todo
-- 1 in review
-- 1 blocked
-- Various priorities: urgent, high, medium, low
-
-### Additional Data
-- 15 task comments with technical discussions
-- 27 chat messages showing project collaboration
-- 14 file attachments (various types)
-- 19 notifications (assignments, comments, invites)
-- 14 friend connections (accepted, pending, blocked)
-- 6 OTP verification records
-
----
-
-## 💡 Useful SQL Queries
-
-### View all projects with member count
-
-```sql
-SELECT
-    p.project_name,
-    u.username AS owner,
-    p.status,
-    COUNT(DISTINCT pm.user_id) AS members,
-    COUNT(DISTINCT t.task_id) AS tasks
-FROM projects p
-JOIN users u ON p.owner_id = u.user_id
-LEFT JOIN project_members pm ON p.project_id = pm.project_id
-LEFT JOIN tasks t ON p.project_id = t.project_id
-GROUP BY p.project_id, p.project_name, u.username, p.status
-ORDER BY p.created_at;
-```
-
-### View tasks with assignees
-
-```sql
-SELECT
-    t.task_name,
-    p.project_name,
-    u1.username AS assigned_to,
-    u2.username AS created_by,
-    t.status,
-    t.priority,
-    t.due_date
-FROM tasks t
-JOIN projects p ON t.project_id = p.project_id
-LEFT JOIN users u1 ON t.assigned_to = u1.user_id
-JOIN users u2 ON t.created_by = u2.user_id
-ORDER BY t.due_date;
-```
-
-### View project chat history
-
-```sql
-SELECT
-    u.username,
-    pc.message_content,
-    pc.created_at
-FROM project_chat_log pc
-JOIN users u ON pc.sender_id = u.user_id
-WHERE pc.project_id = 'proj-001'
-ORDER BY pc.created_at;
-```
-
-### View user's unread notifications
-
-```sql
-SELECT
-    notification_type,
-    message,
-    created_at
-FROM notifications
-WHERE user_id = 'user-001' AND is_read = false
-ORDER BY created_at DESC;
-```
-
-### Project progress statistics
-
-```sql
-SELECT
-    p.project_name,
-    COUNT(t.task_id) AS total_tasks,
-    COUNT(CASE WHEN t.status = 'completed' THEN 1 END) AS completed,
-    COUNT(CASE WHEN t.status = 'in_progress' THEN 1 END) AS in_progress,
-    COUNT(CASE WHEN t.status = 'todo' THEN 1 END) AS todo,
-    ROUND(100.0 * COUNT(CASE WHEN t.status = 'completed' THEN 1 END) /
-          NULLIF(COUNT(t.task_id), 0), 2) AS completion_percent
-FROM projects p
-LEFT JOIN tasks t ON p.project_id = t.project_id
-GROUP BY p.project_id, p.project_name
-ORDER BY p.project_name;
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Can't connect to database?
-
-1. Check PostgreSQL is running:
+### Kill Everything:
 ```bash
-sudo systemctl status postgresql
-```
-
-2. Restart PostgreSQL:
-```bash
-sudo systemctl restart postgresql
-```
-
-3. Check authentication config:
-```bash
-sudo cat /etc/postgresql/*/main/pg_hba.conf | grep netprog
-```
-
-Should see:
-```
-local   netprog_db      netprog_user                            md5
-host    netprog_db      netprog_user    127.0.0.1/32            md5
-```
-
-### Permission errors?
-
-Connect as postgres user and grant permissions:
-```bash
-sudo -u postgres psql -d netprog_db
-```
-
-```sql
-GRANT ALL PRIVILEGES ON SCHEMA netprog TO netprog_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA netprog TO netprog_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA netprog TO netprog_user;
-```
-
-### Want to reset everything?
-
-```bash
-# Drop the database
-sudo -u postgres psql -c "DROP DATABASE netprog_db;"
-
-# Run setup again
-cd DB
-./setup_database.sh
-./load_sample_data.sh
+pkill server
+pkill client
 ```
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-DB/
-├── schema.sql              # Database schema (10 tables, indexes, triggers)
-├── sample_data.sql         # Sample data (100+ records)
-├── setup_database.sh       # Complete database setup script
-├── load_sample_data.sh     # Load sample data script
-├── database.txt            # Original DBML schema design
-└── document.txt            # Project requirements (Vietnamese)
+HUST-NetworkProgramming-TaskManagement/
+│
+├── Server/                      # Backend server
+│   ├── server.cpp              # Main TCP server ⭐
+│   ├── database_handler.h      # PostgreSQL interface
+│   ├── email_service.h         # OTP service
+│   ├── auth_service.h          # Authentication
+│   ├── project_service.h       # Project CRUD
+│   ├── task_service.h          # Task CRUD
+│   ├── chat_service.h          # Chat messaging
+│   ├── file_service.h          # File attachments
+│   └── contact_service.h       # Friend management
+│
+├── Client/                     # Client-side
+│   ├── client.cpp              # Interactive client ⭐
+│   ├── network_manager.h       # TCP client API
+│   └── session_manager.h       # State management
+│
+├── Common/                     # Shared code
+│   ├── protocol.h              # Message types, status codes
+│   ├── json_helper.h           # JSON utilities
+│   └── message_logger.h        # Logging
+│
+├── DB/                         # Database
+│   ├── schema.sql              # Database schema
+│   ├── sample_data.sql         # Test data
+│   ├── setup_database.sh       # Setup script
+│   └── load_sample_data.sh     # Data loader
+│
+├── build/                      # Compiled binaries
+│   ├── server                  # Server executable ⭐
+│   └── client                  # Client executable ⭐
+│
+├── Makefile                    # Build system
+└── README.md                   # This file
 ```
 
 ---
 
-## 🔒 Security Notes
+## Demo Tips
 
-⚠️ **Important for Production:**
+### During Your Presentation:
 
-1. **Change the default password** from `netprog_password`
-2. **Use environment variables** for credentials instead of hardcoding
-3. **Enable SSL** for remote connections
-4. **Restrict network access** in PostgreSQL config (`pg_hba.conf`)
-5. **Don't commit** `db_connection_info.txt` to git (already in `.gitignore`)
-6. **Use prepared statements** in your application to prevent SQL injection
-7. **Hash passwords** with bcrypt (strength 10+)
-8. **Validate all input** before database operations
+1. **Arrange terminals:**
+   - Terminal 1 (top): Server - keep visible for OTP codes
+   - Terminal 2 (bottom-left): Client 1
+   - Terminal 3 (bottom-right): Client 2
 
----
+2. **What to explain:**
+   - "We have a multi-threaded TCP server handling multiple clients"
+   - "Communication uses binary protocol with JSON payloads"
+   - "All data is stored in PostgreSQL database"
+   - "OTP verification adds security to authentication"
+   - "Real-time chat and task updates between clients"
 
-## 📖 Database Schema Details
+3. **Show the flow:**
+   - Start server first
+   - Connect both clients
+   - Both users login
+   - One creates project
+   - Both collaborate on tasks
+   - Show chat working between them
+   - Update task status, show it reflects on other client
 
-### users
-Stores user account information.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| user_id | VARCHAR(36) | Primary key (UUID) |
-| username | VARCHAR(255) | Unique username |
-| email | VARCHAR(255) | Unique email |
-| phone_number | VARCHAR(20) | Unique phone (optional) |
-| password_hash | VARCHAR(255) | Bcrypt hashed password |
-| is_verified | BOOLEAN | Email verification status |
-| created_at | TIMESTAMP | Account creation time |
-
-### projects
-Stores project information.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| project_id | VARCHAR(36) | Primary key |
-| project_name | VARCHAR(255) | Project name |
-| description | TEXT | Project description |
-| owner_id | VARCHAR(36) | FK to users (creator) |
-| start_date | DATE | Project start date |
-| end_date | DATE | Project end date |
-| status | VARCHAR(20) | planning, in_progress, completed, on_hold |
-| created_at | TIMESTAMP | Creation time |
-
-### tasks
-Stores tasks within projects.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| task_id | VARCHAR(36) | Primary key |
-| project_id | VARCHAR(36) | FK to projects |
-| task_name | VARCHAR(255) | Task name |
-| description | TEXT | Task description |
-| assigned_to | VARCHAR(36) | FK to users (assignee) |
-| created_by | VARCHAR(36) | FK to users (creator) |
-| status | VARCHAR(20) | todo, in_progress, review, completed, blocked |
-| priority | VARCHAR(20) | low, medium, high, urgent |
-| start_date | DATE | Task start date |
-| due_date | DATE | Task deadline |
-| completed_at | TIMESTAMP | Completion timestamp |
-| created_at | TIMESTAMP | Creation time |
-
-### project_chat_log
-Stores chat messages within projects.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| chat_id | VARCHAR(36) | Primary key |
-| project_id | VARCHAR(36) | FK to projects |
-| sender_id | VARCHAR(36) | FK to users |
-| message_content | TEXT | Chat message |
-| created_at | TIMESTAMP | Message timestamp |
-
-### otp_verifications
-Stores OTP codes for email verification.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| otp_id | VARCHAR(36) | Primary key |
-| user_id | VARCHAR(36) | FK to users |
-| email | VARCHAR(255) | Email for OTP |
-| otp_code | VARCHAR(10) | OTP code |
-| otp_type | VARCHAR(20) | registration, login, password_reset |
-| expires_at | TIMESTAMP | OTP expiration time |
-| is_used | BOOLEAN | Whether OTP was used |
-| created_at | TIMESTAMP | Creation time |
-
-See `DB/schema.sql` for complete schema with all tables, indexes, and constraints.
+4. **Highlight features:**
+   - Multiple clients simultaneously
+   - Real-time updates
+   - Persistent database storage
+   - Secure authentication with OTP
+   - Project and task management
+   - Team collaboration
 
 ---
 
-## 🧪 Testing Your Application
+## Final Checklist
 
-1. **Use sample data** to test without manual setup
-2. **Test user accounts** are ready (password: `password123`)
-3. **Projects and tasks** are already created
-4. **Test scenarios:**
-   - User authentication (login/register/OTP)
-   - Project CRUD operations
-   - Task management
-   - Chat functionality
-   - File uploads
-   - Notifications
+Before your demo:
 
----
+- [ ] Database is setup (`cd DB && ./setup_database.sh`)
+- [ ] Server and client are built (`make all`)
+- [ ] Test login with one client
+- [ ] Arrange 3 terminals side-by-side
+- [ ] Practice the demo flow once
+- [ ] Prepare to explain architecture
 
-## 📞 Support
+During demo:
 
-For database setup issues:
-1. Check this README first
-2. Review the troubleshooting section
-3. Check PostgreSQL logs: `sudo tail -f /var/log/postgresql/postgresql-14-main.log`
-4. Verify PostgreSQL version: `psql --version`
+- [ ] Start server first, show it listening
+- [ ] Start 2 clients
+- [ ] Register/login on both
+- [ ] Create project on client 1
+- [ ] Show collaboration (chat, tasks)
+- [ ] Update task, show real-time sync
+- [ ] Explain technical details while showing
 
 ---
 
-## 📄 License
+## You're Ready! 🚀
 
-Part of HUST Network Programming Final Project.
+**Read this file** - it has everything you need!
 
----
+**Run these 3 commands** in 3 terminals:
+1. `./build/server`
+2. `./build/client`
+3. `./build/client`
 
-**Ready to start building?** Your database is set up and waiting! 🚀
+**Then follow the demo script above!**
+
+Good luck with your presentation! 🎉

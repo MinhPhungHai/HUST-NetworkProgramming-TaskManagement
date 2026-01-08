@@ -35,11 +35,7 @@ const pool = new Pool({
     password: 'netprog_password'
 });
 
-C (libpq):
-PGconn *conn = PQconnectdb(
-    "host=localhost port=5432 dbname=netprog_db "
-    "user=netprog_user password=netprog_password"
-);
-
-Note: This file is included in git for educational purposes.
-      In production, always keep credentials private!
+SECURITY NOTE:
+- This file is auto-generated and excluded from git
+- Change the password in production!
+- Keep this file secure

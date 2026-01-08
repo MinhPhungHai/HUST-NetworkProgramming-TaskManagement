@@ -1,0 +1,27 @@
+mô tả:
+
+Ứng dụng cho phép người dùng tạo, phân công và theo dõi tiến độ của các công việc trong một dự án. 
+Ứng dụng cũng cần cho phép người dùng giao tiếp với nhau qua chat hoặc video call. Các chức năng cần có:
+•  Tạo tài khoản và xác thực người dùng
+•  Tạo dự án mới và mời thành viên tham gia
+•  Tạo công việc mới và gán cho thành viên
+•  Cập nhật trạng thái của công việc: chưa bắt đầu, đang làm, hoàn thành
+•  Thêm nhận xét và file đính kèm vào công việc
+•  Xem biểu đồ Gantt của dự án để theo dõi tiến độ
+•  Chat với thành viên trong dự án
+
+cách tính điểm
+Yêu cầu:
+•  Kết nối client server bằng socket (2 điểm)
+•  Ghi log các message nhận được và gửi đi bên server (1 điểm)
+•  Tạo tài khoản và xác thực người dùng (2 điểm)
+•  Tạo dự án mới và mời thành viên tham gia (2 điểm)
+•  Tạo công việc mới và gán cho thành viên (2 điểm)
+•  Cập nhật trạng thái của công việc: chưa bắt đầu, đang làm, hoàn thành (2 điểm)
+•  Thêm nhận xét và file đính kèm vào công việc (2 điểm)
+•  Xem biểu đồ Gantt của dự án để theo dõi tiến độ (2 điểm)
+•  Chat với thành viên trong dự án (2 điểm)
+•  Làm giao diện (3 điểm)
+• Tính năng nâng cao khác (5-10)
+
+

@@ -1,0 +1,64 @@
+CXX := g++
+CC := gcc
+CXXFLAGS := -Wall -Wextra -std=c++17 `pkg-config --cflags gtk+-3.0` -I/usr/include/postgresql -I..
+CFLAGS := -Wall -Wextra `pkg-config --cflags gtk+-3.0` -I..
+LDFLAGS := `pkg-config --libs gtk+-3.0` -lpq -lssl -lcrypto -pthread -lstdc++
+
+# Directories
+BUILD_DIR := build
+CLIENT_DIR := ../Client
+COMMON_DIR := ../Common
+
+# UI source files (use integrated versions)
+UI_SRC_CPP := start_integrated.cpp app_state.cpp login_integrated.cpp register.cpp project_list.cpp project_view.cpp settings.cpp gantt.cpp
+
+# Backend source files
+BACKEND_SRC_CPP := $(CLIENT_DIR)/network_wrapper.cpp
+
+# Object files
+UI_OBJ := $(addprefix $(BUILD_DIR)/,$(UI_SRC_CPP:.cpp=.o))
+BACKEND_OBJ := $(addprefix $(BUILD_DIR)/,$(notdir $(BACKEND_SRC_CPP:.cpp=.o)))
+
+ALL_OBJ := $(UI_OBJ) $(BACKEND_OBJ)
+
+TARGET := $(BUILD_DIR)/start_integrated
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(ALL_OBJ)
+	$(CXX) $(ALL_OBJ) -o $@ $(LDFLAGS)
+	@echo "UI built successfully: $(TARGET)"
+	@echo ""
+	@echo "To run:"
+	@echo "  1. Start server in another terminal: cd .. && ./build/server"
+	@echo "  2. Run UI: ./$(TARGET)"
+
+# UI object files
+$(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Backend object files
+$(BUILD_DIR)/network_wrapper.o: $(CLIENT_DIR)/network_wrapper.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Help target
+help:
+	@echo "UI Makefile - Integrated with Backend"
+	@echo ""
+	@echo "Targets:"
+	@echo "  make all        - Build the integrated UI"
+	@echo "  make clean      - Clean build files"
+	@echo "  make help       - Show this help"
+	@echo ""
+	@echo "Before running UI:"
+	@echo "  1. Start server: cd .. && ./build/server"
+	@echo "  2. Run UI: ./build/start_integrated"
+	@echo ""
+	@echo "Note: Server must be running on 127.0.0.1:8080"
