@@ -260,6 +260,151 @@ public:
         }
     }
 
+    // Change password for logged-in user
+    StatusCode changePassword(const std::string& user_id, const std::string& old_password,
+                             const std::string& new_password) {
+        try {
+            std::string query = "SELECT password_hash FROM users WHERE user_id = " +
+                              db.escapeString(user_id);
+            PGresult* res = db.executeQuery(query);
+
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_USER_NOT_FOUND;
+            }
+
+            std::string stored_hash = PQgetvalue(res, 0, 0);
+            PQclear(res);
+
+            std::string old_hash = hashPassword(old_password);
+            if (old_hash != stored_hash) {
+                return STATUS_INVALID_CREDENTIALS;
+            }
+
+            std::string new_hash = hashPassword(new_password);
+            query = "UPDATE users SET password_hash = " + db.escapeString(new_hash) +
+                   ", updated_at = NOW() WHERE user_id = " + db.escapeString(user_id);
+            db.executeQuery(query);
+
+            return STATUS_SUCCESS;
+        } catch (const std::exception& e) {
+            std::cerr << "Change password error: " << e.what() << std::endl;
+            return STATUS_DATABASE_ERROR;
+        }
+    }
+
+    // Reset password using username + email (name optional)
+    StatusCode resetPassword(const std::string& username, const std::string& email,
+                            const std::string& name, const std::string& new_password) {
+        try {
+            if (!name.empty() && name != username) {
+                return STATUS_INVALID_REQUEST;
+            }
+
+            std::string query = "SELECT user_id FROM users WHERE username = " +
+                              db.escapeString(username) + " AND email = " +
+                              db.escapeString(email);
+            PGresult* res = db.executeQuery(query);
+
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_USER_NOT_FOUND;
+            }
+
+            std::string user_id = PQgetvalue(res, 0, 0);
+            PQclear(res);
+
+            std::string new_hash = hashPassword(new_password);
+            query = "UPDATE users SET password_hash = " + db.escapeString(new_hash) +
+                   ", updated_at = NOW() WHERE user_id = " + db.escapeString(user_id);
+            db.executeQuery(query);
+
+            return STATUS_SUCCESS;
+        } catch (const std::exception& e) {
+            std::cerr << "Reset password error: " << e.what() << std::endl;
+            return STATUS_DATABASE_ERROR;
+        }
+    }
+
+    StatusCode requestPasswordReset(const std::string& username, const std::string& email,
+                                   std::string& otp_id_out) {
+        try {
+            std::string query = "SELECT user_id FROM users WHERE username = " +
+                              db.escapeString(username) + " AND email = " +
+                              db.escapeString(email);
+            PGresult* res = db.executeQuery(query);
+
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_USER_NOT_FOUND;
+            }
+            PQclear(res);
+
+            return sendOTP(email, "reset_password", otp_id_out);
+        } catch (const std::exception& e) {
+            std::cerr << "Request reset error: " << e.what() << std::endl;
+            return STATUS_DATABASE_ERROR;
+        }
+    }
+
+    StatusCode resetPasswordWithOTP(const std::string& email, const std::string& otp_code,
+                                   const std::string& new_password) {
+        try {
+            std::string query = "SELECT otp_id, expires_at, is_used FROM otp_verifications "
+                              "WHERE email = " + db.escapeString(email) +
+                              " AND otp_code = " + db.escapeString(otp_code) +
+                              " AND otp_type = " + db.escapeString("reset_password") +
+                              " ORDER BY created_at DESC LIMIT 1";
+
+            PGresult* res = db.executeQuery(query);
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_INVALID_OTP;
+            }
+
+            std::string otp_id = PQgetvalue(res, 0, 0);
+            std::string expires_at = PQgetvalue(res, 0, 1);
+            bool is_used = (std::string(PQgetvalue(res, 0, 2)) == "t");
+            PQclear(res);
+
+            if (is_used) {
+                return STATUS_INVALID_OTP;
+            }
+
+            time_t now = time(nullptr);
+            struct tm tm_expiry = {};
+            strptime(expires_at.c_str(), "%Y-%m-%d %H:%M:%S", &tm_expiry);
+            time_t expiry_time = mktime(&tm_expiry);
+
+            if (now > expiry_time) {
+                return STATUS_OTP_EXPIRED;
+            }
+
+            query = "UPDATE otp_verifications SET is_used = true WHERE otp_id = " +
+                   db.escapeString(otp_id);
+            db.executeQuery(query);
+
+            query = "SELECT user_id FROM users WHERE email = " + db.escapeString(email);
+            res = db.executeQuery(query);
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_USER_NOT_FOUND;
+            }
+            std::string user_id = PQgetvalue(res, 0, 0);
+            PQclear(res);
+
+            std::string new_hash = hashPassword(new_password);
+            query = "UPDATE users SET password_hash = " + db.escapeString(new_hash) +
+                   ", updated_at = NOW() WHERE user_id = " + db.escapeString(user_id);
+            db.executeQuery(query);
+
+            return STATUS_SUCCESS;
+        } catch (const std::exception& e) {
+            std::cerr << "Reset password OTP error: " << e.what() << std::endl;
+            return STATUS_DATABASE_ERROR;
+        }
+    }
+
     // Get user info
     bool getUserInfo(const std::string& user_id, std::string& username,
                     std::string& email, bool& is_verified) {

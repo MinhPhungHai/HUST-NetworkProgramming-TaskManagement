@@ -24,6 +24,8 @@ struct TaskBar {
 
 std::vector<TaskBar> g_gantt_tasks;
 int g_total_days = 14;
+time_t g_timeline_start = 0;
+const int kVisibleDays = 14;
 
 bool parse_date(const std::string &value, std::tm &out_tm) {
     if (value.size() < 10) {
@@ -48,7 +50,8 @@ int days_between(time_t start, time_t end) {
 
 void load_gantt_tasks() {
     g_gantt_tasks.clear();
-    g_total_days = 14;
+    g_total_days = kVisibleDays;
+    g_timeline_start = 0;
 
     if (!network_is_connected()) {
         return;
@@ -118,6 +121,13 @@ void load_gantt_tasks() {
     }
 
     if (ranges.empty()) {
+        std::time_t now = std::time(nullptr);
+        std::tm now_tm{};
+        localtime_r(&now, &now_tm);
+        now_tm.tm_hour = 0;
+        now_tm.tm_min = 0;
+        now_tm.tm_sec = 0;
+        g_timeline_start = mktime(&now_tm);
         return;
     }
 
@@ -132,6 +142,10 @@ void load_gantt_tasks() {
     if (g_total_days < 1) {
         g_total_days = 1;
     }
+    if (g_total_days < kVisibleDays) {
+        g_total_days = kVisibleDays;
+    }
+    g_timeline_start = min_start;
 
     for (size_t i = 0; i < g_gantt_tasks.size(); ++i) {
         int start_offset = days_between(min_start, ranges[i].first);
@@ -151,8 +165,7 @@ gboolean on_gantt_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
     int left_margin = 180;
     int top_margin = 60;
     int row_height = 40;
-    int day_width = g_total_days > 0 ? (width - left_margin - 40) / g_total_days : 60;
-    if (day_width < 40) day_width = 40;
+    int day_width = 60;
     int num_tasks = static_cast<int>(g_gantt_tasks.size());
 
     cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
@@ -163,9 +176,12 @@ gboolean on_gantt_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
 
     cairo_set_font_size(cr, 10);
     for (int i = 0; i < g_total_days; i++) {
+        time_t day_time = g_timeline_start + static_cast<time_t>(i) * 86400;
+        std::tm day_tm{};
+        localtime_r(&day_time, &day_tm);
         char day_label[20];
-        snprintf(day_label, sizeof(day_label), "Day %d", i + 1);
-        cairo_move_to(cr, left_margin + i * day_width + day_width / 2 - 15, top_margin - 10);
+        strftime(day_label, sizeof(day_label), "%m-%d", &day_tm);
+        cairo_move_to(cr, left_margin + i * day_width + 4, top_margin - 10);
         cairo_show_text(cr, day_label);
     }
 
@@ -256,10 +272,20 @@ void show_gantt_chart_window() {
     gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 10);
     gtk_box_pack_start(GTK_BOX(main_box), header, FALSE, FALSE, 0);
 
+    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_ALWAYS, GTK_POLICY_NEVER);
+    gtk_widget_set_hexpand(scrolled, TRUE);
+    gtk_widget_set_vexpand(scrolled, TRUE);
+
     GtkWidget *drawing_area = gtk_drawing_area_new();
-    gtk_widget_set_size_request(drawing_area, 1000, 400);
+    int min_width = 180 + (kVisibleDays * 60) + 40;
+    int full_width = 180 + (g_total_days * 60) + 40;
+    int width = full_width > min_width ? full_width : min_width;
+    gtk_widget_set_size_request(drawing_area, width, 400);
     g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(on_gantt_draw), NULL);
-    gtk_box_pack_start(GTK_BOX(main_box), drawing_area, TRUE, TRUE, 0);
+
+    gtk_container_add(GTK_CONTAINER(scrolled), drawing_area);
+    gtk_box_pack_start(GTK_BOX(main_box), scrolled, TRUE, TRUE, 0);
 
     GtkWidget *info_frame = gtk_frame_new("Chart Information");
     GtkWidget *info_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -279,4 +305,5 @@ void show_gantt_chart_window() {
 
     g_signal_connect(gantt_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(gantt_window);
+    gtk_window_present(GTK_WINDOW(gantt_window));
 }

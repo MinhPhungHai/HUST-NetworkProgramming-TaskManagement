@@ -137,6 +137,7 @@ void show_settings_screen() {
 
     g_signal_connect(settings_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(settings_window);
+    gtk_window_present(GTK_WINDOW(settings_window));
 }
 
 void show_user_info_dialog() {
@@ -192,20 +193,6 @@ void show_user_info_dialog() {
     // Separator
     GtkWidget *sep2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(box), sep2, FALSE, FALSE, 5);
-
-    // Password field
-    GtkWidget *password_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-    GtkWidget *password_label = gtk_label_new("Password");
-    gtk_widget_override_font(password_label, label_font);
-    gtk_label_set_xalign(GTK_LABEL(password_label), 0);
-
-    GtkWidget *password_value = gtk_label_new("••••••••");
-    gtk_widget_override_font(password_value, value_font);
-    gtk_label_set_xalign(GTK_LABEL(password_value), 0);
-
-    gtk_box_pack_start(GTK_BOX(password_box), password_label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(password_box), password_value, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(box), password_box, FALSE, FALSE, 0);
 
     pango_font_description_free(label_font);
     pango_font_description_free(value_font);

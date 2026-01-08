@@ -207,6 +207,49 @@ public:
         return receiveMessage(response_type, response_data);
     }
 
+    bool changePassword(const std::string& old_password, const std::string& new_password,
+                       std::string& response_data) {
+        JsonBuilder request;
+        request.add("old_password", old_password)
+               .add("new_password", new_password);
+
+        if (!sendMessage(MSG_CHANGE_PASSWORD_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    bool resetPassword(const std::string& username, const std::string& email,
+                      std::string& response_data) {
+        JsonBuilder request;
+        request.add("username", username)
+               .add("email", email);
+
+        if (!sendMessage(MSG_RESET_PASSWORD_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    bool confirmResetPassword(const std::string& email, const std::string& otp_code,
+                             const std::string& new_password, std::string& response_data) {
+        JsonBuilder request;
+        request.add("email", email)
+               .add("otp_code", otp_code)
+               .add("new_password", new_password);
+
+        if (!sendMessage(MSG_RESET_PASSWORD_CONFIRM_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
     // Project methods
     bool getProjects(std::string& response_data) {
         JsonBuilder request;
@@ -284,6 +327,20 @@ public:
                .add("invitee", invitee);
 
         if (!sendMessage(MSG_INVITE_TO_PROJECT_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    bool removeProjectMember(const std::string& project_id, const std::string& member_id,
+                            std::string& response_data) {
+        JsonBuilder request;
+        request.add("project_id", project_id)
+               .add("member_id", member_id);
+
+        if (!sendMessage(MSG_REMOVE_PROJECT_MEMBER_REQUEST, request.build())) {
             return false;
         }
 

@@ -343,4 +343,49 @@ public:
             return STATUS_DATABASE_ERROR;
         }
     }
+
+    // Remove member from project (owner only)
+    StatusCode removeMember(const std::string& project_id, const std::string& owner_id,
+                            const std::string& member_user_id) {
+        try {
+            std::string query = "SELECT owner_id FROM projects WHERE project_id = " +
+                              db.escapeString(project_id);
+            PGresult* res = db.executeQuery(query);
+
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_NOT_FOUND;
+            }
+
+            std::string current_owner = PQgetvalue(res, 0, 0);
+            PQclear(res);
+
+            if (current_owner != owner_id) {
+                return STATUS_UNAUTHORIZED;
+            }
+
+            if (member_user_id == current_owner) {
+                return STATUS_INVALID_REQUEST;
+            }
+
+            query = "SELECT member_id FROM project_members WHERE project_id = " +
+                   db.escapeString(project_id) + " AND user_id = " + db.escapeString(member_user_id);
+            res = db.executeQuery(query);
+
+            if (PQntuples(res) == 0) {
+                PQclear(res);
+                return STATUS_NOT_FOUND;
+            }
+            PQclear(res);
+
+            query = "DELETE FROM project_members WHERE project_id = " +
+                   db.escapeString(project_id) + " AND user_id = " + db.escapeString(member_user_id);
+            db.executeQuery(query);
+
+            return STATUS_SUCCESS;
+        } catch (const std::exception& e) {
+            std::cerr << "Remove member error: " << e.what() << std::endl;
+            return STATUS_DATABASE_ERROR;
+        }
+    }
 };

@@ -218,6 +218,71 @@ void handleAuth(int socket_fd, MessageType type, const std::string& payload) {
             break;
         }
 
+        case MSG_CHANGE_PASSWORD_REQUEST: {
+            std::string user_id = getCurrentUserId(socket_fd);
+            if (user_id.empty()) {
+                sendError(socket_fd, STATUS_UNAUTHORIZED, "Not logged in");
+                break;
+            }
+
+            std::string old_password = parser.getString("old_password");
+            std::string new_password = parser.getString("new_password");
+
+            if (old_password.empty() || new_password.empty()) {
+                sendError(socket_fd, STATUS_INVALID_REQUEST, "Missing password");
+                break;
+            }
+
+            StatusCode status = g_auth->changePassword(user_id, old_password, new_password);
+            if (status == STATUS_SUCCESS) {
+                sendSuccess(socket_fd, MSG_CHANGE_PASSWORD_RESPONSE);
+            } else {
+                sendError(socket_fd, status, "Failed to change password");
+            }
+            break;
+        }
+
+        case MSG_RESET_PASSWORD_REQUEST: {
+            std::string username = parser.getString("username");
+            std::string email = parser.getString("email");
+
+            if (username.empty() || email.empty()) {
+                sendError(socket_fd, STATUS_INVALID_REQUEST, "Missing reset fields");
+                break;
+            }
+
+            std::string otp_id;
+            StatusCode status = g_auth->requestPasswordReset(username, email, otp_id);
+            if (status == STATUS_SUCCESS) {
+                JsonBuilder response;
+                response.add("status", (int)STATUS_SUCCESS)
+                       .add("email", email);
+                sendMessage(socket_fd, MSG_RESET_PASSWORD_RESPONSE, response.build());
+            } else {
+                sendError(socket_fd, status, "Failed to reset password");
+            }
+            break;
+        }
+
+        case MSG_RESET_PASSWORD_CONFIRM_REQUEST: {
+            std::string email = parser.getString("email");
+            std::string otp_code = parser.getString("otp_code");
+            std::string new_password = parser.getString("new_password");
+
+            if (email.empty() || otp_code.empty() || new_password.empty()) {
+                sendError(socket_fd, STATUS_INVALID_REQUEST, "Missing reset fields");
+                break;
+            }
+
+            StatusCode status = g_auth->resetPasswordWithOTP(email, otp_code, new_password);
+            if (status == STATUS_SUCCESS) {
+                sendSuccess(socket_fd, MSG_RESET_PASSWORD_CONFIRM_RESPONSE);
+            } else {
+                sendError(socket_fd, status, "Failed to confirm reset");
+            }
+            break;
+        }
+
         default:
             sendError(socket_fd, STATUS_INVALID_REQUEST, "Unknown auth message type");
     }
@@ -321,6 +386,20 @@ void handleProject(int socket_fd, MessageType type, const std::string& payload) 
                 sendSuccess(socket_fd, MSG_INVITE_TO_PROJECT_RESPONSE);
             } else {
                 sendError(socket_fd, status, "Failed to invite user");
+            }
+            break;
+        }
+
+        case MSG_REMOVE_PROJECT_MEMBER_REQUEST: {
+            std::string project_id = parser.getString("project_id");
+            std::string member_id = parser.getString("member_id");
+
+            StatusCode status = g_project->removeMember(project_id, user_id, member_id);
+
+            if (status == STATUS_SUCCESS) {
+                sendSuccess(socket_fd, MSG_REMOVE_PROJECT_MEMBER_RESPONSE);
+            } else {
+                sendError(socket_fd, status, "Failed to remove member");
             }
             break;
         }
@@ -629,9 +708,9 @@ void handleClient(int client_socket) {
         g_logger->logReceived(type, payload, std::to_string(client_socket));
 
         // Route message to appropriate handler
-        if (type >= MSG_LOGIN_REQUEST && type <= MSG_LOGOUT_RESPONSE) {
+        if (type >= MSG_LOGIN_REQUEST && type <= MSG_RESET_PASSWORD_RESPONSE) {
             handleAuth(client_socket, type, payload);
-        } else if (type >= MSG_GET_PROJECTS_REQUEST && type <= MSG_INVITE_TO_PROJECT_RESPONSE) {
+        } else if (type >= MSG_GET_PROJECTS_REQUEST && type <= MSG_REMOVE_PROJECT_MEMBER_RESPONSE) {
             handleProject(client_socket, type, payload);
         } else if (type >= MSG_GET_TASKS_REQUEST && type <= MSG_DELETE_TASK_RESPONSE) {
             handleTask(client_socket, type, payload);

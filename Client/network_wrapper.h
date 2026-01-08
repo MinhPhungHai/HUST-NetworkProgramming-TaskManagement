@@ -25,6 +25,9 @@ int network_register(const char* username, const char* email, const char* passwo
 int network_login(const char* username, const char* password, char* response, int response_size);
 int network_verify_otp(const char* email, const char* otp_code, const char* otp_type, char* response, int response_size);
 int network_logout(char* response, int response_size);
+int network_change_password(const char* old_password, const char* new_password, char* response, int response_size);
+int network_reset_password(const char* username, const char* email, char* response, int response_size);
+int network_confirm_reset_password(const char* email, const char* otp_code, const char* new_password, char* response, int response_size);
 
 // Project functions
 int network_get_projects(char* response, int response_size);
@@ -33,6 +36,7 @@ int network_update_project(const char* project_id, const char* name, const char*
 int network_delete_project(const char* project_id, char* response, int response_size);
 int network_get_project_details(const char* project_id, char* response, int response_size);
 int network_invite_to_project(const char* project_id, const char* invitee, char* response, int response_size);
+int network_remove_project_member(const char* project_id, const char* member_id, char* response, int response_size);
 
 // Task functions
 int network_get_tasks(const char* project_id, char* response, int response_size);

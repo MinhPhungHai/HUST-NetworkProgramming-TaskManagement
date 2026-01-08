@@ -17,6 +17,7 @@ namespace {
 struct MemberInfo {
     std::string id;
     std::string name;
+    std::string role;
 };
 
 enum TaskCols {
@@ -39,8 +40,11 @@ std::unordered_map<std::string, std::string> g_member_ids;
 GtkWidget *g_task_tree = nullptr;
 GtkWidget *g_chat_view = nullptr;
 GtkWidget *g_project_title = nullptr;
+GtkWidget *g_member_buttons = nullptr;
+GtkTreeViewColumn *g_file_column = nullptr;
 
 void show_comments_dialog();
+void on_remove_member_clicked(GtkWidget *widget, gpointer data);
 
 std::string status_to_server(const std::string &ui_status) {
     if (ui_status == "Not Started") return "todo";
@@ -331,6 +335,7 @@ void load_project_details() {
             MemberInfo info;
             info.id = member.value("user_id", "");
             info.name = member.value("username", "");
+            info.role = member.value("role", "member");
             if (!info.id.empty()) {
                 g_members.push_back(info);
                 if (!info.name.empty()) {
@@ -338,6 +343,10 @@ void load_project_details() {
                 }
             }
         }
+    }
+
+    if (g_member_buttons) {
+        gtk_widget_set_visible(g_member_buttons, is_project_owner == 1);
     }
 }
 
@@ -567,14 +576,6 @@ void on_add_task_clicked(GtkWidget *widget, gpointer data) {
     gtk_entry_set_placeholder_text(GTK_ENTRY(due_date_entry), "2024-01-30");
     gtk_box_pack_start(GTK_BOX(box), due_date_entry, FALSE, FALSE, 3);
 
-    GtkWidget *file_label = gtk_label_new("File Path (optional)");
-    gtk_label_set_xalign(GTK_LABEL(file_label), 0);
-    gtk_box_pack_start(GTK_BOX(box), file_label, FALSE, FALSE, 3);
-
-    GtkWidget *file_entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(file_entry), "/path/to/file or leave empty");
-    gtk_box_pack_start(GTK_BOX(box), file_entry, FALSE, FALSE, 3);
-
     gtk_widget_show_all(dialog);
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
@@ -598,8 +599,6 @@ void on_add_task_clicked(GtkWidget *widget, gpointer data) {
         gchar *priority_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(priority_combo));
         const char *start_date = gtk_entry_get_text(GTK_ENTRY(start_date_entry));
         const char *due_date = gtk_entry_get_text(GTK_ENTRY(due_date_entry));
-        const char *file_path = gtk_entry_get_text(GTK_ENTRY(file_entry));
-
         char response[4096];
         if (!network_create_task(current_project_id, task_name, description ? description : "",
                                  assigned_id.c_str(),
@@ -616,18 +615,6 @@ void on_add_task_clicked(GtkWidget *widget, gpointer data) {
                 std::string status_server = status_to_server(status_text);
                 char update_resp[4096];
                 network_update_task(task_id, "", "", "", status_server.c_str(), "", "", "", update_resp, sizeof(update_resp));
-            }
-
-            if (file_path && strlen(file_path) > 0) {
-                std::string file_name;
-                std::string file_type;
-                int file_size = 0;
-                if (get_file_meta(file_path, file_name, file_type, file_size)) {
-                    char file_resp[4096];
-                    network_upload_file(task_id, file_name.c_str(), file_path, file_type.c_str(), file_size, file_resp, sizeof(file_resp));
-                } else {
-                    show_error_dialog(GTK_WINDOW(dialog), "Failed to read file metadata for attachment.");
-                }
             }
 
             load_tasks();
@@ -823,6 +810,91 @@ void on_edit_task_clicked(GtkWidget *widget, gpointer data) {
     g_free(priority);
 }
 
+void on_add_file_clicked(GtkWidget *widget, gpointer data) {
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(g_task_tree));
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+    if (!gtk_tree_selection_get_selected(selection, &model, &iter)) {
+        show_error_dialog(GTK_WINDOW(project_view_window), "Please select a task to add a file.");
+        return;
+    }
+
+    gchar *task_id = nullptr;
+    gtk_tree_model_get(model, &iter, COL_TASK_ID, &task_id, -1);
+    if (!task_id) {
+        return;
+    }
+
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Add File Link",
+        GTK_WINDOW(project_view_window),
+        GTK_DIALOG_MODAL,
+        "Cancel", GTK_RESPONSE_CANCEL,
+        "Save", GTK_RESPONSE_ACCEPT,
+        NULL);
+
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 12);
+    gtk_container_add(GTK_CONTAINER(content), box);
+
+    GtkWidget *label = gtk_label_new("Enter file link or path:");
+    gtk_label_set_xalign(GTK_LABEL(label), 0);
+    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+
+    GtkWidget *entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "https://example.com/file or /path/to/file");
+    gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
+
+    gtk_widget_show_all(dialog);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        const char *link = gtk_entry_get_text(GTK_ENTRY(entry));
+        if (link && strlen(link) > 0) {
+            std::string file_name = link;
+            std::string file_type = "link";
+            int file_size = 0;
+            char response[4096];
+            if (!network_upload_file(task_id, file_name.c_str(), link, file_type.c_str(), file_size, response, sizeof(response))) {
+                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to add file (network error).");
+            } else if (json_get_status(response) != 0) {
+                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to add file.");
+            } else {
+                load_tasks();
+            }
+        }
+    }
+
+    gtk_widget_destroy(dialog);
+    g_free(task_id);
+}
+
+void on_task_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer data) {
+    if (column != g_file_column) {
+        return;
+    }
+    GtkTreeModel *model = gtk_tree_view_get_model(tree_view);
+    GtkTreeIter iter;
+    if (!gtk_tree_model_get_iter(model, &iter, path)) {
+        return;
+    }
+    gchar *file_link = nullptr;
+    gtk_tree_model_get(model, &iter, COL_FILE, &file_link, -1);
+    if (!file_link || strlen(file_link) == 0) {
+        g_free(file_link);
+        return;
+    }
+    std::string uri = file_link;
+    if (uri.find("://") == std::string::npos) {
+        uri = std::string("file://") + uri;
+    }
+    GError *error = nullptr;
+    gtk_show_uri_on_window(GTK_WINDOW(project_view_window), uri.c_str(), GDK_CURRENT_TIME, &error);
+    if (error) {
+        g_error_free(error);
+    }
+    g_free(file_link);
+}
+
 void on_delete_task_clicked(GtkWidget *widget, gpointer data) {
     GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(g_task_tree));
     GtkTreeModel *model;
@@ -877,6 +949,136 @@ void on_chat_send(GtkWidget *widget, gpointer data) {
 
     gtk_entry_set_text(GTK_ENTRY(entry), "");
     load_chat_history();
+}
+
+void on_add_member_clicked(GtkWidget *widget, gpointer data) {
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Add Member",
+        GTK_WINDOW(project_view_window),
+        GTK_DIALOG_MODAL,
+        "Cancel", GTK_RESPONSE_CANCEL,
+        "Invite", GTK_RESPONSE_ACCEPT,
+        NULL);
+
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 12);
+    gtk_container_add(GTK_CONTAINER(content), box);
+
+    GtkWidget *label = gtk_label_new("Enter username or email:");
+    gtk_label_set_xalign(GTK_LABEL(label), 0);
+    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+
+    GtkWidget *entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "username or email");
+    gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
+
+    gtk_widget_show_all(dialog);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        const char *invitee = gtk_entry_get_text(GTK_ENTRY(entry));
+        if (!invitee || strlen(invitee) == 0) {
+            gtk_widget_destroy(dialog);
+            return;
+        }
+
+        char response[4096];
+        if (!network_invite_to_project(current_project_id, invitee, response, sizeof(response))) {
+            show_error_dialog(GTK_WINDOW(project_view_window), "Failed to invite member (network error).");
+        } else if (json_get_status(response) != 0) {
+            show_error_dialog(GTK_WINDOW(project_view_window), "Failed to invite member.");
+        } else {
+            load_project_details();
+        }
+    }
+
+    gtk_widget_destroy(dialog);
+}
+
+void show_members_dialog() {
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Project Members",
+        GTK_WINDOW(project_view_window),
+        GTK_DIALOG_MODAL,
+        "Close", GTK_RESPONSE_CLOSE,
+        NULL);
+
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, 400);
+
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 12);
+    gtk_container_add(GTK_CONTAINER(content), box);
+
+    GtkListStore *store = gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    GtkTreeIter iter;
+    for (const auto &member : g_members) {
+        std::string role = member.role;
+        if (role.empty() && member.id == current_user_id) {
+            role = "owner";
+        }
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter,
+                           0, member.name.c_str(),
+                           1, member.id.c_str(),
+                           2, role.c_str(),
+                           -1);
+    }
+
+    GtkWidget *tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+    GtkTreeViewColumn *col = gtk_tree_view_column_new_with_attributes("Username", renderer, "text", 0, NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tree), col);
+
+    renderer = gtk_cell_renderer_text_new();
+    col = gtk_tree_view_column_new_with_attributes("Role", renderer, "text", 2, NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tree), col);
+
+    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(scrolled), tree);
+    gtk_box_pack_start(GTK_BOX(box), scrolled, TRUE, TRUE, 0);
+
+    GtkWidget *delete_btn = gtk_button_new_with_label("Remove Member");
+    gtk_box_pack_start(GTK_BOX(box), delete_btn, FALSE, FALSE, 0);
+    gtk_widget_set_sensitive(delete_btn, is_project_owner == 1);
+
+    g_signal_connect(delete_btn, "clicked", G_CALLBACK(on_remove_member_clicked), tree);
+
+    gtk_widget_show_all(dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+}
+
+void on_remove_member_clicked(GtkWidget *widget, gpointer data) {
+    GtkTreeView *tree_view = GTK_TREE_VIEW(data);
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(tree_view);
+    GtkTreeModel *model;
+    GtkTreeIter it;
+    if (!gtk_tree_selection_get_selected(selection, &model, &it)) {
+        show_error_dialog(GTK_WINDOW(project_view_window), "Please select a member.");
+        return;
+    }
+    gchar *member_id = nullptr;
+    gchar *role = nullptr;
+    gtk_tree_model_get(model, &it, 1, &member_id, 2, &role, -1);
+    if (!member_id) {
+        return;
+    }
+    if (role && strcmp(role, "owner") == 0) {
+        show_error_dialog(GTK_WINDOW(project_view_window), "Cannot remove project owner.");
+        g_free(member_id);
+        g_free(role);
+        return;
+    }
+    char response[4096];
+    if (!network_remove_project_member(current_project_id, member_id, response, sizeof(response))) {
+        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to remove member (network error).");
+    } else if (json_get_status(response) != 0) {
+        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to remove member.");
+    } else {
+        gtk_list_store_remove(GTK_LIST_STORE(model), &it);
+        load_project_details();
+    }
+    g_free(member_id);
+    g_free(role);
 }
 } // namespace
 
@@ -935,10 +1137,12 @@ void show_project_view_screen() {
     GtkWidget *edit_task_btn = gtk_button_new_with_label("Edit Task");
     GtkWidget *delete_task_btn = gtk_button_new_with_label("Delete Task");
     GtkWidget *comments_btn = gtk_button_new_with_label("Comments");
+    GtkWidget *add_file_btn = gtk_button_new_with_label("Add File");
     gtk_box_pack_start(GTK_BOX(task_buttons), add_task_btn, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(task_buttons), edit_task_btn, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(task_buttons), delete_task_btn, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(task_buttons), comments_btn, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(task_buttons), add_file_btn, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(task_box), task_buttons, FALSE, FALSE, 5);
 
     GtkWidget *task_scrolled = gtk_scrolled_window_new(NULL, NULL);
@@ -960,6 +1164,7 @@ void show_project_view_screen() {
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("File", renderer, "text", COL_FILE, NULL);
+    g_file_column = column;
     gtk_tree_view_append_column(GTK_TREE_VIEW(g_task_tree), column);
 
     GtkListStore *status_store = gtk_list_store_new(1, G_TYPE_STRING);
@@ -987,6 +1192,8 @@ void show_project_view_screen() {
     g_signal_connect(edit_task_btn, "clicked", G_CALLBACK(on_edit_task_clicked), NULL);
     g_signal_connect(delete_task_btn, "clicked", G_CALLBACK(on_delete_task_clicked), NULL);
     g_signal_connect(comments_btn, "clicked", G_CALLBACK(show_comments_dialog), NULL);
+    g_signal_connect(add_file_btn, "clicked", G_CALLBACK(on_add_file_clicked), NULL);
+    g_signal_connect(g_task_tree, "row-activated", G_CALLBACK(on_task_row_activated), NULL);
 
     gtk_box_pack_start(GTK_BOX(left_box), task_frame, TRUE, TRUE, 0);
 
@@ -995,6 +1202,18 @@ void show_project_view_screen() {
 
     GtkWidget *chat_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_add(GTK_CONTAINER(chat_frame), chat_box);
+
+    // Member buttons (owner only)
+    g_member_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget *add_member_btn = gtk_button_new_with_label("Add Member");
+    GtkWidget *view_member_btn = gtk_button_new_with_label("View Members");
+    gtk_box_pack_start(GTK_BOX(g_member_buttons), add_member_btn, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(g_member_buttons), view_member_btn, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(chat_box), g_member_buttons, FALSE, FALSE, 0);
+    gtk_widget_set_visible(g_member_buttons, is_project_owner == 1);
+
+    g_signal_connect(add_member_btn, "clicked", G_CALLBACK(on_add_member_clicked), NULL);
+    g_signal_connect(view_member_btn, "clicked", G_CALLBACK(show_members_dialog), NULL);
 
     GtkWidget *chat_scrolled = gtk_scrolled_window_new(NULL, NULL);
     g_chat_view = gtk_text_view_new();
@@ -1023,8 +1242,10 @@ void show_project_view_screen() {
 
     g_signal_connect(project_view_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(project_view_window);
+    gtk_window_present(GTK_WINDOW(project_view_window));
 
     load_project_details();
     load_tasks();
     load_chat_history();
 }
+void on_remove_member_clicked(GtkWidget *widget, gpointer data);

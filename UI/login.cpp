@@ -141,4 +141,5 @@ void show_login_screen() {
 
     g_signal_connect(login_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(login_window);
+    gtk_window_present(GTK_WINDOW(login_window));
 }

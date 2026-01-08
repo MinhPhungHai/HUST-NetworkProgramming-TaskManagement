@@ -35,31 +35,6 @@ static ProjectMeta* get_meta(GtkWidget *widget) {
     return static_cast<ProjectMeta*>(g_object_get_data(G_OBJECT(widget), "project_meta"));
 }
 
-static std::string trim_copy(const std::string &value) {
-    size_t start = value.find_first_not_of(" \t\n\r");
-    size_t end = value.find_last_not_of(" \t\n\r");
-    if (start == std::string::npos || end == std::string::npos) {
-        return "";
-    }
-    return value.substr(start, end - start + 1);
-}
-
-static std::vector<std::string> split_members(const char *input) {
-    std::vector<std::string> results;
-    if (!input) {
-        return results;
-    }
-    std::stringstream ss(input);
-    std::string item;
-    while (std::getline(ss, item, ',')) {
-        std::string trimmed = trim_copy(item);
-        if (!trimmed.empty()) {
-            results.push_back(trimmed);
-        }
-    }
-    return results;
-}
-
 static std::string status_to_server(const std::string &ui_status) {
     if (ui_status == "Planning") return "planning";
     if (ui_status == "In Progress") return "in_progress";
@@ -108,11 +83,18 @@ static void on_project_clicked(GtkWidget *widget, gpointer data) {
     is_project_owner = (meta->owner_id == current_user_id) ? 1 : 0;
 
     show_project_view_screen();
+    if (project_view_window) {
+        gtk_window_present(GTK_WINDOW(project_view_window));
+    }
 }
 
 static void on_edit_project_clicked(GtkWidget *widget, gpointer data) {
     ProjectMeta *meta = get_meta(widget);
     if (!meta) {
+        return;
+    }
+    if (meta->owner_id != current_user_id) {
+        show_error_dialog(GTK_WINDOW(project_list_window), "Only project owner can edit.");
         return;
     }
 
@@ -223,6 +205,10 @@ static void on_edit_project_clicked(GtkWidget *widget, gpointer data) {
 static void on_delete_project_clicked(GtkWidget *widget, gpointer data) {
     ProjectMeta *meta = get_meta(widget);
     if (!meta) {
+        return;
+    }
+    if (meta->owner_id != current_user_id) {
+        show_error_dialog(GTK_WINDOW(project_list_window), "Only project owner can delete.");
         return;
     }
 
@@ -360,6 +346,10 @@ static void load_projects() {
         g_signal_connect(edit_btn, "clicked", G_CALLBACK(on_edit_project_clicked), NULL);
         g_signal_connect(delete_btn, "clicked", G_CALLBACK(on_delete_project_clicked), NULL);
 
+        gboolean is_owner = (meta->owner_id == current_user_id);
+        gtk_widget_set_sensitive(edit_btn, is_owner);
+        gtk_widget_set_sensitive(delete_btn, is_owner);
+
         gtk_box_pack_start(GTK_BOX(button_row), open_btn, TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(button_row), edit_btn, TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(button_row), delete_btn, TRUE, TRUE, 0);
@@ -441,6 +431,7 @@ void show_project_list_screen() {
 
     g_signal_connect(project_list_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(project_list_window);
+    gtk_window_present(GTK_WINDOW(project_list_window));
 
     load_projects();
 }
@@ -509,14 +500,6 @@ void show_create_project_dialog() {
     gtk_combo_box_set_active(GTK_COMBO_BOX(status_combo), 0);
     gtk_box_pack_start(GTK_BOX(box), status_combo, FALSE, FALSE, 3);
 
-    GtkWidget *members_label = gtk_label_new("Invite Members (username or email, comma-separated)");
-    gtk_label_set_xalign(GTK_LABEL(members_label), 0);
-    gtk_box_pack_start(GTK_BOX(box), members_label, FALSE, FALSE, 3);
-
-    GtkWidget *members_entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(members_entry), "user1@email.com, user2, user3@email.com");
-    gtk_box_pack_start(GTK_BOX(box), members_entry, FALSE, FALSE, 3);
-
     gtk_widget_show_all(dialog);
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
@@ -535,8 +518,6 @@ void show_create_project_dialog() {
         const char *start_date = gtk_entry_get_text(GTK_ENTRY(start_date_entry));
         const char *end_date = gtk_entry_get_text(GTK_ENTRY(end_date_entry));
         gchar *status_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(status_combo));
-        const char *members = gtk_entry_get_text(GTK_ENTRY(members_entry));
-
         char response[4096];
         if (!network_create_project(name, desc_value ? desc_value : "", response, sizeof(response))) {
             show_error_dialog(GTK_WINDOW(dialog), "Failed to create project (network error).");
@@ -550,12 +531,6 @@ void show_create_project_dialog() {
             if ((server_status != "planning") || (start_date && strlen(start_date) > 0) || (end_date && strlen(end_date) > 0)) {
                 char update_resp[4096];
                 network_update_project(project_id, name, desc_value ? desc_value : "", server_status.c_str(), start_date, end_date, update_resp, sizeof(update_resp));
-            }
-
-            std::vector<std::string> invites = split_members(members);
-            for (const std::string &invitee : invites) {
-                char invite_resp[4096];
-                network_invite_to_project(project_id, invitee.c_str(), invite_resp, sizeof(invite_resp));
             }
 
             GtkWidget *success = gtk_message_dialog_new(GTK_WINDOW(project_list_window),

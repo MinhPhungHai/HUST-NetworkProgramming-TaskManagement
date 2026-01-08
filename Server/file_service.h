@@ -48,7 +48,7 @@ public:
             // Insert file record
             std::ostringstream insert_query;
             insert_query << "INSERT INTO file_attachments (file_id, task_id, uploaded_by, "
-                        << "file_name, file_path, file_type, file_size, uploaded_at) "
+                        << "file_name, file_path, file_type, file_size, created_at) "
                         << "VALUES (" << db.escapeString(file_id) << ", "
                         << db.escapeString(task_id) << ", "
                         << db.escapeString(uploader_id) << ", "
@@ -72,11 +72,11 @@ public:
         try {
             std::string query =
                 "SELECT f.file_id, f.file_name, f.file_path, f.file_type, f.file_size, "
-                "f.uploaded_by, u.username as uploader_name, f.uploaded_at "
+                "f.uploaded_by, u.username as uploader_name, f.created_at "
                 "FROM file_attachments f "
                 "JOIN users u ON f.uploaded_by = u.user_id "
                 "WHERE f.task_id = " + db.escapeString(task_id) +
-                " ORDER BY f.uploaded_at DESC";
+                " ORDER BY f.created_at DESC";
 
             PGresult* res = db.executeQuery(query);
             int rows = PQntuples(res);

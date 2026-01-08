@@ -108,6 +108,51 @@ int network_logout(char* response, int response_size) {
     return 1;
 }
 
+int network_change_password(const char* old_password, const char* new_password, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->changePassword(old_password, new_password, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_reset_password(const char* username, const char* email, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->resetPassword(username, email, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_confirm_reset_password(const char* email, const char* otp_code, const char* new_password, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->confirmResetPassword(email, otp_code, new_password, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
 int network_get_projects(char* response, int response_size) {
     if (g_network == nullptr) {
         return 0;
@@ -190,6 +235,21 @@ int network_invite_to_project(const char* project_id, const char* invitee, char*
 
     std::string resp;
     if (!g_network->inviteToProject(project_id, invitee, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_remove_project_member(const char* project_id, const char* member_id, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->removeProjectMember(project_id, member_id, resp)) {
         return 0;
     }
 

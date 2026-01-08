@@ -299,4 +299,5 @@ void show_register_screen() {
 
     g_signal_connect(register_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(register_window);
+    gtk_window_present(GTK_WINDOW(register_window));
 }
