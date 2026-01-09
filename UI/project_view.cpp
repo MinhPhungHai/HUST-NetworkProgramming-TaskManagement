@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <string>
+#include <algorithm>
 #include <unordered_map>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -42,6 +43,7 @@ GtkWidget *g_chat_view = nullptr;
 GtkWidget *g_project_title = nullptr;
 GtkWidget *g_member_buttons = nullptr;
 GtkTreeViewColumn *g_file_column = nullptr;
+guint g_chat_poll_timer_id = 0;
 
 void show_comments_dialog();
 void on_remove_member_clicked(GtkWidget *widget, gpointer data);
@@ -136,6 +138,53 @@ std::string find_member_id(const std::string &input) {
     return "";
 }
 
+void open_url_in_operagx(const std::string &url) {
+    // Try Firefox first (since it's installed on this system)
+    std::string command = "firefox \"" + url + "\" &";
+    int result = system(command.c_str());
+
+    // If firefox fails, try /usr/bin/firefox with full path
+    if (result != 0) {
+        command = "/usr/bin/firefox \"" + url + "\" &";
+        result = system(command.c_str());
+    }
+
+    // Try other common browsers as fallbacks
+    if (result != 0) {
+        command = "google-chrome \"" + url + "\" &";
+        result = system(command.c_str());
+    }
+
+    if (result != 0) {
+        command = "chromium-browser \"" + url + "\" &";
+        result = system(command.c_str());
+    }
+
+    // Try OperaGX in case it gets installed later
+    if (result != 0) {
+        command = "operagx \"" + url + "\" &";
+        result = system(command.c_str());
+    }
+
+    if (result != 0) {
+        command = "opera-gx \"" + url + "\" &";
+        result = system(command.c_str());
+    }
+
+    // If all fail, fallback to xdg-open
+    if (result != 0) {
+        command = "xdg-open \"" + url + "\" &";
+        system(command.c_str());
+    }
+}
+
+void on_file_button_clicked(GtkWidget *widget, gpointer data) {
+    const char *url = static_cast<const char*>(data);
+    if (url) {
+        open_url_in_operagx(url);
+    }
+}
+
 std::string load_files_label(const std::string &task_id) {
     char response[4096];
     if (!network_get_files(task_id.c_str(), response, sizeof(response))) {
@@ -152,11 +201,8 @@ std::string load_files_label(const std::string &task_id) {
     if (files.empty()) {
         return "";
     }
-    std::string first = files[0].value("file_name", "");
-    if (files.size() == 1) {
-        return first;
-    }
-    return first + " (+" + std::to_string(files.size() - 1) + ")";
+    // Simply return "File" if there are any files attached
+    return "File";
 }
 
 struct CommentDialogState {
@@ -379,7 +425,48 @@ void load_tasks() {
         return;
     }
 
+    // Create a vector to hold and sort tasks
+    std::vector<json> tasks_vec;
     for (const auto &task : payload["tasks"]) {
+        tasks_vec.push_back(task);
+    }
+
+    // Sort tasks by priority (High > Medium > Low) then by deadline (earliest first)
+    std::sort(tasks_vec.begin(), tasks_vec.end(), [](const json &a, const json &b) {
+        // Priority mapping: high=3, medium=2, low=1, empty=0
+        auto priority_value = [](const std::string &p) {
+            std::string lower = p;
+            for (char &c : lower) c = std::tolower(c);
+            if (lower == "high") return 3;
+            if (lower == "medium") return 2;
+            if (lower == "low") return 1;
+            return 0;
+        };
+
+        std::string priority_a = a.value("priority", "");
+        std::string priority_b = b.value("priority", "");
+        int pval_a = priority_value(priority_a);
+        int pval_b = priority_value(priority_b);
+
+        // First sort by priority (higher priority first)
+        if (pval_a != pval_b) {
+            return pval_a > pval_b;
+        }
+
+        // Then sort by deadline (earlier deadline first)
+        std::string due_a = a.value("due_date", "");
+        std::string due_b = b.value("due_date", "");
+
+        // Empty dates go to the end
+        if (due_a.empty() && !due_b.empty()) return false;
+        if (!due_a.empty() && due_b.empty()) return true;
+        if (due_a.empty() && due_b.empty()) return false;
+
+        return due_a < due_b; // Earlier date first (lexicographic comparison works for YYYY-MM-DD)
+    });
+
+    // Now add sorted tasks to the list store
+    for (const auto &task : tasks_vec) {
         std::string task_id = task.value("task_id", "");
         std::string task_name = task.value("task_name", "");
         std::string description = task.value("description", "");
@@ -417,19 +504,16 @@ void load_chat_history() {
     }
 
     if (!network_is_connected()) {
-        show_error_dialog(GTK_WINDOW(project_view_window), "Not connected to server.");
         return;
     }
 
     char response[8192];
     if (!network_get_chat_history(current_project_id, 50, response, sizeof(response))) {
-        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to load chat history.");
         return;
     }
 
     json payload = json::parse(response, nullptr, false);
     if (payload.is_discarded() || payload.value("status", 1) != 0) {
-        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to load chat history.");
         return;
     }
 
@@ -448,7 +532,17 @@ void load_chat_history() {
     }
 }
 
+gboolean chat_poll_timer_callback(gpointer data) {
+    load_chat_history();
+    return G_SOURCE_CONTINUE; // Keep the timer running
+}
+
 void on_back_to_projects(GtkWidget *widget, gpointer data) {
+    // Stop the chat polling timer
+    if (g_chat_poll_timer_id > 0) {
+        g_source_remove(g_chat_poll_timer_id);
+        g_chat_poll_timer_id = 0;
+    }
     gtk_widget_hide(project_view_window);
     show_project_list_screen();
 }
@@ -599,6 +693,21 @@ void on_add_task_clicked(GtkWidget *widget, gpointer data) {
         gchar *priority_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(priority_combo));
         const char *start_date = gtk_entry_get_text(GTK_ENTRY(start_date_entry));
         const char *due_date = gtk_entry_get_text(GTK_ENTRY(due_date_entry));
+
+        // Validate dates: start date must be before due date
+        if (start_date && strlen(start_date) > 0 && due_date && strlen(due_date) > 0) {
+            std::string start_str(start_date);
+            std::string due_str(due_date);
+            if (start_str >= due_str) {
+                show_error_dialog(GTK_WINDOW(dialog), "Start date must be before due date!");
+                g_free(description);
+                g_free(status_text);
+                g_free(priority_text);
+                gtk_widget_destroy(dialog);
+                return;
+            }
+        }
+
         char response[4096];
         if (!network_create_task(current_project_id, task_name, description ? description : "",
                                  assigned_id.c_str(),
@@ -780,6 +889,28 @@ void on_edit_task_clicked(GtkWidget *widget, gpointer data) {
             const char *new_start = gtk_entry_get_text(GTK_ENTRY(start_date_entry));
             const char *new_due = gtk_entry_get_text(GTK_ENTRY(due_date_entry));
 
+            // Validate dates: start date must be before due date
+            if (new_start && strlen(new_start) > 0 && new_due && strlen(new_due) > 0) {
+                std::string start_str(new_start);
+                std::string due_str(new_due);
+                if (start_str >= due_str) {
+                    show_error_dialog(GTK_WINDOW(dialog), "Start date must be before due date!");
+                    g_free(new_desc);
+                    g_free(new_status);
+                    g_free(new_priority);
+                    gtk_widget_destroy(dialog);
+                    g_free(task_id);
+                    g_free(task_name);
+                    g_free(assignee_id);
+                    g_free(status);
+                    g_free(start_date);
+                    g_free(due_date);
+                    g_free(description);
+                    g_free(priority);
+                    return;
+                }
+            }
+
             std::string status_server = new_status ? status_to_server(new_status) : "";
             char response[4096];
             if (!network_update_task(task_id ? task_id : "", new_name, new_desc ? new_desc : "",
@@ -877,22 +1008,107 @@ void on_task_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeVie
     if (!gtk_tree_model_get_iter(model, &iter, path)) {
         return;
     }
-    gchar *file_link = nullptr;
-    gtk_tree_model_get(model, &iter, COL_FILE, &file_link, -1);
-    if (!file_link || strlen(file_link) == 0) {
-        g_free(file_link);
+
+    // Get the task ID to fetch all files
+    gchar *task_id = nullptr;
+    gtk_tree_model_get(model, &iter, COL_TASK_ID, &task_id, -1);
+    if (!task_id) {
         return;
     }
-    std::string uri = file_link;
-    if (uri.find("://") == std::string::npos) {
-        uri = std::string("file://") + uri;
+
+    // Fetch all files for this task
+    char response[4096];
+    if (!network_get_files(task_id, response, sizeof(response))) {
+        g_free(task_id);
+        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to load files.");
+        return;
     }
-    GError *error = nullptr;
-    gtk_show_uri_on_window(GTK_WINDOW(project_view_window), uri.c_str(), GDK_CURRENT_TIME, &error);
-    if (error) {
-        g_error_free(error);
+
+    json payload = json::parse(response, nullptr, false);
+    if (payload.is_discarded() || payload.value("status", 1) != 0) {
+        g_free(task_id);
+        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to load files.");
+        return;
     }
-    g_free(file_link);
+
+    if (!payload.contains("files") || !payload["files"].is_array()) {
+        g_free(task_id);
+        show_error_dialog(GTK_WINDOW(project_view_window), "No files attached to this task.");
+        return;
+    }
+
+    const json &files = payload["files"];
+    if (files.empty()) {
+        g_free(task_id);
+        show_error_dialog(GTK_WINDOW(project_view_window), "No files attached to this task.");
+        return;
+    }
+
+    // If only one file, open it directly
+    if (files.size() == 1) {
+        std::string file_path = files[0].value("file_path", "");
+        if (!file_path.empty()) {
+            // Open URL in OperaGX browser
+            open_url_in_operagx(file_path);
+        }
+        g_free(task_id);
+        return;
+    }
+
+    // Multiple files - show a dialog with all links
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Task Files",
+        GTK_WINDOW(project_view_window),
+        GTK_DIALOG_MODAL,
+        "Close", GTK_RESPONSE_CLOSE,
+        NULL);
+
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 500, 300);
+
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(content), scrolled);
+
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 12);
+    gtk_container_add(GTK_CONTAINER(scrolled), box);
+
+    // Store URLs to free later
+    std::vector<gchar*> allocated_urls;
+
+    // Add each file as a clickable button
+    for (const auto &file : files) {
+        std::string file_name = file.value("file_name", "");
+        std::string file_path = file.value("file_path", "");
+
+        if (file_name.empty() || file_path.empty()) {
+            continue;
+        }
+
+        // Create a button that will open in OperaGX
+        std::string button_label = "🔗 " + file_name;
+        GtkWidget *file_button = gtk_button_new_with_label(button_label.c_str());
+        gtk_button_set_relief(GTK_BUTTON(file_button), GTK_RELIEF_NONE);
+
+        // Allocate memory for the URL and store it
+        gchar *url_copy = g_strdup(file_path.c_str());
+        allocated_urls.push_back(url_copy);
+
+        g_signal_connect(file_button, "clicked", G_CALLBACK(on_file_button_clicked), url_copy);
+        gtk_box_pack_start(GTK_BOX(box), file_button, FALSE, FALSE, 0);
+    }
+
+    gtk_widget_show_all(dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+
+    // Free allocated URLs
+    for (gchar *url : allocated_urls) {
+        g_free(url);
+    }
+
+    g_free(task_id);
 }
 
 void on_delete_task_clicked(GtkWidget *widget, gpointer data) {
@@ -1085,10 +1301,20 @@ void on_remove_member_clicked(GtkWidget *widget, gpointer data) {
 void show_project_view_screen() {
     if (project_list_window) gtk_widget_hide(project_list_window);
 
+    // Destroy old window if it exists to ensure clean state
+    if (project_view_window) {
+        gtk_widget_destroy(project_view_window);
+        project_view_window = nullptr;
+    }
+
     project_view_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(project_view_window), "Project View - Project Management System");
     gtk_window_set_default_size(GTK_WINDOW(project_view_window), 1200, 720);
     gtk_window_set_position(GTK_WINDOW(project_view_window), GTK_WIN_POS_CENTER);
+
+    // Ensure window appears on top and gets focus
+    gtk_window_set_keep_above(GTK_WINDOW(project_view_window), TRUE);
+    gtk_window_set_urgency_hint(GTK_WINDOW(project_view_window), TRUE);
 
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(project_view_window), main_box);
@@ -1238,14 +1464,23 @@ void show_project_view_screen() {
 
     gtk_paned_add1(GTK_PANED(content_paned), left_box);
     gtk_paned_add2(GTK_PANED(content_paned), chat_frame);
-    gtk_paned_set_position(GTK_PANED(content_paned), 1200);
+    gtk_paned_set_position(GTK_PANED(content_paned), 800);
 
-    g_signal_connect(project_view_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    // Don't connect destroy to gtk_main_quit - it will be destroyed when navigating
     gtk_widget_show_all(project_view_window);
-    gtk_window_present(GTK_WINDOW(project_view_window));
+
+    // Force window to appear and get focus
+    gtk_window_present_with_time(GTK_WINDOW(project_view_window), GDK_CURRENT_TIME);
+    gtk_window_set_keep_above(GTK_WINDOW(project_view_window), FALSE); // Turn off keep above after showing
 
     load_project_details();
     load_tasks();
     load_chat_history();
+
+    // Start chat polling timer (poll every 2 seconds)
+    if (g_chat_poll_timer_id > 0) {
+        g_source_remove(g_chat_poll_timer_id);
+    }
+    g_chat_poll_timer_id = g_timeout_add_seconds(2, chat_poll_timer_callback, NULL);
 }
 void on_remove_member_clicked(GtkWidget *widget, gpointer data);

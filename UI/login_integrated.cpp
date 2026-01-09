@@ -126,7 +126,7 @@ static void on_login_clicked(GtkWidget *widget, gpointer data) {
     if (strlen(username) == 0 || strlen(password) == 0) {
         GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(login_window),
                                                    GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-                                                   "Please enter username/email and password");
+                                                   "Please enter username and password");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
         return;
@@ -171,7 +171,7 @@ static void on_login_clicked(GtkWidget *widget, gpointer data) {
     } else if (status == 2) {  // STATUS_INVALID_CREDENTIALS
         GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(login_window),
                                                    GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-                                                   "Invalid username/email or password!");
+                                                   "Invalid username or password!");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
     } else if (status == 3) {  // STATUS_USER_NOT_FOUND
@@ -408,23 +408,13 @@ void show_login_screen() {
     gtk_widget_override_font(title, font_desc);
     gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 10);
 
-    // Connection status
-    char conn_status[128];
-    if (network_is_connected()) {
-        snprintf(conn_status, sizeof(conn_status), "✓ Connected to server (127.0.0.1:8080)");
-    } else {
-        snprintf(conn_status, sizeof(conn_status), "✗ Not connected to server!");
-    }
-    GtkWidget *status_label = gtk_label_new(conn_status);
-    gtk_box_pack_start(GTK_BOX(box), status_label, FALSE, FALSE, 5);
-
-    // Username/Email entry
-    GtkWidget *username_label = gtk_label_new("Username or Email:");
+    // Username entry
+    GtkWidget *username_label = gtk_label_new("Username:");
     gtk_label_set_xalign(GTK_LABEL(username_label), 0);
     gtk_box_pack_start(GTK_BOX(box), username_label, FALSE, FALSE, 5);
 
     GtkWidget *username_entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(username_entry), "Enter username or email");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(username_entry), "Enter username");
     gtk_box_pack_start(GTK_BOX(box), username_entry, FALSE, FALSE, 5);
 
     // Password entry
@@ -436,12 +426,6 @@ void show_login_screen() {
     gtk_entry_set_visibility(GTK_ENTRY(password_entry), FALSE);
     gtk_entry_set_placeholder_text(GTK_ENTRY(password_entry), "Enter password");
     gtk_box_pack_start(GTK_BOX(box), password_entry, FALSE, FALSE, 5);
-
-    // Info hint about OTP delivery
-    GtkWidget *otp_hint = gtk_label_new("⚠ After clicking Login, check the SERVER TERMINAL for your OTP code!\nOTP will be sent to the email linked to this account.");
-    gtk_label_set_line_wrap(GTK_LABEL(otp_hint), TRUE);
-    gtk_label_set_xalign(GTK_LABEL(otp_hint), 0);
-    gtk_box_pack_start(GTK_BOX(box), otp_hint, FALSE, FALSE, 10);
 
     // Buttons
     GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
@@ -464,10 +448,6 @@ void show_login_screen() {
     GtkWidget *register_link = gtk_link_button_new_with_label("", "Don't have an account? Register");
     g_signal_connect(register_link, "activate-link", G_CALLBACK(on_login_link_clicked), NULL);
     gtk_box_pack_start(GTK_BOX(box), register_link, FALSE, FALSE, 5);
-
-    GtkWidget *forgot_link = gtk_link_button_new_with_label("", "Forgot your password?");
-    g_signal_connect(forgot_link, "activate-link", G_CALLBACK(on_forgot_password_clicked), NULL);
-    gtk_box_pack_start(GTK_BOX(box), forgot_link, FALSE, FALSE, 5);
 
     g_signal_connect(login_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_widget_show_all(login_window);

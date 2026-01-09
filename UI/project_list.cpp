@@ -380,10 +380,20 @@ void show_project_list_screen() {
     if (project_view_window) gtk_widget_hide(project_view_window);
     if (settings_window) gtk_widget_hide(settings_window);
 
+    // If window already exists, destroy and recreate to ensure it appears properly
+    if (project_list_window) {
+        gtk_widget_destroy(project_list_window);
+        project_list_window = nullptr;
+    }
+
     project_list_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(project_list_window), "Projects - Project Management System");
     gtk_window_set_default_size(GTK_WINDOW(project_list_window), 1200, 720);
     gtk_window_set_position(GTK_WINDOW(project_list_window), GTK_WIN_POS_CENTER);
+
+    // Ensure window appears on top and gets focus
+    gtk_window_set_keep_above(GTK_WINDOW(project_list_window), TRUE);
+    gtk_window_set_urgency_hint(GTK_WINDOW(project_list_window), TRUE);
 
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(project_list_window), main_box);
@@ -416,22 +426,22 @@ void show_project_list_screen() {
     gtk_box_set_homogeneous(GTK_BOX(button_bar), FALSE);
 
     GtkWidget *create_btn = gtk_button_new_with_label("+ Create Project");
-    GtkWidget *add_friend_btn = gtk_button_new_with_label("👤 Add Friend");
     GtkWidget *settings_btn = gtk_button_new_with_label("⚙ Settings");
 
     g_signal_connect(create_btn, "clicked", G_CALLBACK(on_create_project_clicked), NULL);
-    g_signal_connect(add_friend_btn, "clicked", G_CALLBACK(on_add_friend_clicked), NULL);
     g_signal_connect(settings_btn, "clicked", G_CALLBACK(on_settings_clicked), NULL);
 
     gtk_box_pack_start(GTK_BOX(button_bar), create_btn, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(button_bar), add_friend_btn, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(button_bar), settings_btn, FALSE, FALSE, 0);
 
     gtk_box_pack_start(GTK_BOX(main_box), button_bar, FALSE, FALSE, 0);
 
-    g_signal_connect(project_list_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    // Don't connect destroy to gtk_main_quit - it will be destroyed when navigating
     gtk_widget_show_all(project_list_window);
-    gtk_window_present(GTK_WINDOW(project_list_window));
+
+    // Force window to appear and get focus
+    gtk_window_present_with_time(GTK_WINDOW(project_list_window), GDK_CURRENT_TIME);
+    gtk_window_set_keep_above(GTK_WINDOW(project_list_window), FALSE); // Turn off keep above after showing
 
     load_projects();
 }

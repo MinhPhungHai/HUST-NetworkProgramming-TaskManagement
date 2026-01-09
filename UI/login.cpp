@@ -18,10 +18,6 @@ static void show_otp_dialog() {
     gtk_container_set_border_width(GTK_CONTAINER(box), 12);
     gtk_container_add(GTK_CONTAINER(content), box);
 
-    GtkWidget *label = gtk_label_new("OTP sent to the email linked to this account.");
-    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 4);
-
     GtkWidget *otp_entry = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(otp_entry), "Enter OTP");
     gtk_box_pack_start(GTK_BOX(box), otp_entry, FALSE, FALSE, 4);
@@ -110,12 +106,6 @@ void show_login_screen() {
     gtk_entry_set_visibility(GTK_ENTRY(password_entry), FALSE);
     gtk_entry_set_placeholder_text(GTK_ENTRY(password_entry), "Enter password");
     gtk_box_pack_start(GTK_BOX(box), password_entry, FALSE, FALSE, 5);
-
-    // Info hint about OTP delivery (email looked up server-side)
-    GtkWidget *otp_hint = gtk_label_new("OTP will be sent to the email linked to this account after verifying username/email and password.");
-    gtk_label_set_line_wrap(GTK_LABEL(otp_hint), TRUE);
-    gtk_label_set_xalign(GTK_LABEL(otp_hint), 0);
-    gtk_box_pack_start(GTK_BOX(box), otp_hint, FALSE, FALSE, 5);
 
     // Buttons
     GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);

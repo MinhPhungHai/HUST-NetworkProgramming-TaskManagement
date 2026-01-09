@@ -174,14 +174,14 @@ gboolean on_gantt_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
     cairo_move_to(cr, left_margin, 30);
     cairo_show_text(cr, "Project Timeline - Gantt Chart");
 
-    cairo_set_font_size(cr, 10);
+    cairo_set_font_size(cr, 9);
     for (int i = 0; i < g_total_days; i++) {
         time_t day_time = g_timeline_start + static_cast<time_t>(i) * 86400;
         std::tm day_tm{};
         localtime_r(&day_time, &day_tm);
         char day_label[20];
-        strftime(day_label, sizeof(day_label), "%m-%d", &day_tm);
-        cairo_move_to(cr, left_margin + i * day_width + 4, top_margin - 10);
+        strftime(day_label, sizeof(day_label), "%d/%m/%Y", &day_tm);
+        cairo_move_to(cr, left_margin + i * day_width + 2, top_margin - 10);
         cairo_show_text(cr, day_label);
     }
 
@@ -243,12 +243,19 @@ void on_close_gantt(GtkWidget *widget, gpointer data) {
     gtk_widget_hide(gantt_window);
     if (project_view_window) {
         gtk_widget_show(project_view_window);
+        gtk_window_present(GTK_WINDOW(project_view_window));
     }
 }
 } // namespace
 
 void show_gantt_chart_window() {
     if (project_view_window) gtk_widget_hide(project_view_window);
+
+    // If gantt window already exists, destroy it first to recreate with fresh data
+    if (gantt_window) {
+        gtk_widget_destroy(gantt_window);
+        gantt_window = nullptr;
+    }
 
     load_gantt_tasks();
 
@@ -303,7 +310,7 @@ void show_gantt_chart_window() {
 
     gtk_box_pack_start(GTK_BOX(main_box), info_frame, FALSE, FALSE, 0);
 
-    g_signal_connect(gantt_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    // Don't connect destroy to gtk_main_quit - it will be destroyed when navigating
     gtk_widget_show_all(gantt_window);
     gtk_window_present(GTK_WINDOW(gantt_window));
 }

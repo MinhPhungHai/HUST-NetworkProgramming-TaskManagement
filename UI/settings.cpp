@@ -48,6 +48,12 @@ static void on_user_info_clicked(GtkWidget *widget, gpointer data) {
 void show_settings_screen() {
     if (project_list_window) gtk_widget_hide(project_list_window);
 
+    // Destroy old window if it exists to ensure clean state
+    if (settings_window) {
+        gtk_widget_destroy(settings_window);
+        settings_window = nullptr;
+    }
+
     settings_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(settings_window), "Settings - Project Management System");
     gtk_window_set_default_size(GTK_WINDOW(settings_window), 1200, 720);
@@ -135,7 +141,7 @@ void show_settings_screen() {
     pango_font_description_free(section_font);
     pango_font_description_free(small_font);
 
-    g_signal_connect(settings_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    // Don't connect destroy to gtk_main_quit - it will be destroyed when navigating
     gtk_widget_show_all(settings_window);
     gtk_window_present(GTK_WINDOW(settings_window));
 }
