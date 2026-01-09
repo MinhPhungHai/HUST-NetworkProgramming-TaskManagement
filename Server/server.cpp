@@ -11,6 +11,7 @@
 #include "../Common/protocol.h"
 #include "../Common/json_helper.h"
 #include "../Common/message_logger.h"
+#include "../Common/base64_util.h"
 #include "database_handler.h"
 #include "email_service.h"
 #include "auth_service.h"
@@ -611,18 +612,21 @@ void handleFile(int socket_fd, MessageType type, const std::string& payload) {
         case MSG_UPLOAD_FILE_REQUEST: {
             std::string task_id = parser.getString("task_id");
             std::string file_name = parser.getString("file_name");
-            std::string file_path = parser.getString("file_path");
             std::string file_type = parser.getString("file_type");
-            int file_size = parser.getInt("file_size");
+            std::string file_data_base64 = parser.getString("file_data");
+
+            // Decode base64 file data
+            std::string decoded_data = base64_decode(file_data_base64);
 
             std::string file_id;
-            StatusCode status = g_file->uploadFile(task_id, user_id, file_name, file_path,
-                                                  file_type, file_size, file_id);
+            StatusCode status = g_file->uploadFileContent(task_id, user_id, file_name, file_type,
+                                                         decoded_data.data(), decoded_data.size(), file_id);
 
             if (status == STATUS_SUCCESS) {
                 JsonBuilder response;
                 response.add("status", (int)STATUS_SUCCESS)
-                       .add("file_id", file_id);
+                       .add("file_id", file_id)
+                       .add("file_name", file_name);
 
                 sendMessage(socket_fd, MSG_UPLOAD_FILE_RESPONSE, response.build());
             } else {
@@ -640,6 +644,48 @@ void handleFile(int socket_fd, MessageType type, const std::string& payload) {
                    .addRaw("files", files);
 
             sendMessage(socket_fd, MSG_GET_FILES_RESPONSE, response.build());
+            break;
+        }
+
+        case MSG_DOWNLOAD_FILE_REQUEST: {
+            std::string file_id = parser.getString("file_id");
+
+            std::vector<char> file_data;
+            std::string file_name, file_type;
+            StatusCode status = g_file->downloadFileContent(file_id, user_id, file_data, file_name, file_type);
+
+            if (status == STATUS_SUCCESS) {
+                // Encode file data as base64
+                std::string encoded_data = base64_encode(file_data.data(), file_data.size());
+
+                JsonBuilder response;
+                response.add("status", (int)STATUS_SUCCESS)
+                       .add("file_id", file_id)
+                       .add("file_name", file_name)
+                       .add("file_type", file_type)
+                       .add("file_size", (int)file_data.size())
+                       .add("file_data", encoded_data);
+
+                sendMessage(socket_fd, MSG_DOWNLOAD_FILE_RESPONSE, response.build());
+            } else {
+                sendError(socket_fd, status, "Failed to download file");
+            }
+            break;
+        }
+
+        case MSG_DELETE_FILE_REQUEST: {
+            std::string file_id = parser.getString("file_id");
+            StatusCode status = g_file->deleteFile(file_id, user_id);
+
+            if (status == STATUS_SUCCESS) {
+                JsonBuilder response;
+                response.add("status", (int)STATUS_SUCCESS)
+                       .add("file_id", file_id);
+
+                sendMessage(socket_fd, MSG_DELETE_FILE_RESPONSE, response.build());
+            } else {
+                sendError(socket_fd, status, "Failed to delete file");
+            }
             break;
         }
 
@@ -718,7 +764,7 @@ void handleClient(int client_socket) {
             handleTaskComment(client_socket, type, payload);
         } else if (type >= MSG_SEND_CHAT_REQUEST && type <= MSG_GET_CHAT_HISTORY_RESPONSE) {
             handleChat(client_socket, type, payload);
-        } else if (type >= MSG_UPLOAD_FILE_REQUEST && type <= MSG_GET_FILES_RESPONSE) {
+        } else if (type >= MSG_UPLOAD_FILE_REQUEST && type <= MSG_DELETE_FILE_RESPONSE) {
             handleFile(client_socket, type, payload);
         } else if (type >= MSG_ADD_CONTACT_REQUEST && type <= MSG_GET_CONTACTS_RESPONSE) {
             handleContact(client_socket, type, payload);

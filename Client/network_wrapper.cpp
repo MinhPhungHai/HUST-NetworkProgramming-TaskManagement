@@ -3,6 +3,8 @@
 #include "../Common/json_helper.h"
 #include "../Common/protocol.h"
 #include <cstring>
+#include <fstream>
+#include <vector>
 
 static NetworkManager* g_network = nullptr;
 
@@ -400,6 +402,61 @@ int network_get_files(const char* task_id, char* response, int response_size) {
 
     std::string resp;
     if (!g_network->getFiles(task_id, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_upload_file_with_content(const char* task_id, const char* local_file_path, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->uploadFileWithContent(task_id, local_file_path, resp)) {
+        return 0;
+    }
+
+    strncpy(response, resp.c_str(), response_size - 1);
+    response[response_size - 1] = '\0';
+    return 1;
+}
+
+int network_download_file_content(const char* file_id, const char* save_path) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::vector<char> file_data;
+    std::string file_name;
+    std::string file_type;
+
+    if (!g_network->downloadFileContent(file_id, file_data, file_name, file_type)) {
+        return 0;
+    }
+
+    // Write file to disk
+    std::ofstream out_file(save_path, std::ios::binary);
+    if (!out_file.is_open()) {
+        return 0;
+    }
+
+    out_file.write(file_data.data(), file_data.size());
+    out_file.close();
+
+    return 1;
+}
+
+int network_delete_file(const char* file_id, char* response, int response_size) {
+    if (g_network == nullptr) {
+        return 0;
+    }
+
+    std::string resp;
+    if (!g_network->deleteFile(file_id, resp)) {
         return 0;
     }
 

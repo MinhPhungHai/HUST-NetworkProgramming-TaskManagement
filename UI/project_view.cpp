@@ -178,13 +178,6 @@ void open_url_in_operagx(const std::string &url) {
     }
 }
 
-void on_file_button_clicked(GtkWidget *widget, gpointer data) {
-    const char *url = static_cast<const char*>(data);
-    if (url) {
-        open_url_in_operagx(url);
-    }
-}
-
 std::string load_files_label(const std::string &task_id) {
     char response[4096];
     if (!network_get_files(task_id.c_str(), response, sizeof(response))) {
@@ -623,13 +616,17 @@ void on_add_task_clicked(GtkWidget *widget, gpointer data) {
     gtk_container_add(GTK_CONTAINER(desc_frame), desc_text);
     gtk_box_pack_start(GTK_BOX(box), desc_frame, FALSE, FALSE, 3);
 
-    GtkWidget *people_label = gtk_label_new("Assign To (username or email)");
+    GtkWidget *people_label = gtk_label_new("Assign To (project member)");
     gtk_label_set_xalign(GTK_LABEL(people_label), 0);
     gtk_box_pack_start(GTK_BOX(box), people_label, FALSE, FALSE, 3);
 
-    GtkWidget *people_entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(people_entry), "username or email@example.com");
-    gtk_box_pack_start(GTK_BOX(box), people_entry, FALSE, FALSE, 3);
+    GtkWidget *people_combo = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(people_combo), "Unassigned");
+    for (size_t i = 0; i < g_members.size(); ++i) {
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(people_combo), g_members[i].name.c_str());
+    }
+    gtk_combo_box_set_active(GTK_COMBO_BOX(people_combo), 0);
+    gtk_box_pack_start(GTK_BOX(box), people_combo, FALSE, FALSE, 3);
 
     GtkWidget *status_label = gtk_label_new("Status");
     gtk_label_set_xalign(GTK_LABEL(status_label), 0);
@@ -686,8 +683,11 @@ void on_add_task_clicked(GtkWidget *widget, gpointer data) {
         gtk_text_buffer_get_bounds(desc_buffer, &start, &end);
         gchar *description = gtk_text_buffer_get_text(desc_buffer, &start, &end, FALSE);
 
-        const char *assignee_input = gtk_entry_get_text(GTK_ENTRY(people_entry));
-        std::string assigned_id = find_member_id(assignee_input ? assignee_input : "");
+        gint assignee_idx = gtk_combo_box_get_active(GTK_COMBO_BOX(people_combo));
+        std::string assigned_id;
+        if (assignee_idx > 0 && static_cast<size_t>(assignee_idx - 1) < g_members.size()) {
+            assigned_id = g_members[assignee_idx - 1].id;
+        }
 
         gchar *status_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(status_combo));
         gchar *priority_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(priority_combo));
@@ -956,47 +956,64 @@ void on_add_file_clicked(GtkWidget *widget, gpointer data) {
         return;
     }
 
-    GtkWidget *dialog = gtk_dialog_new_with_buttons("Add File Link",
+    // Create file chooser dialog
+    GtkWidget *dialog = gtk_file_chooser_dialog_new("Choose File to Upload",
         GTK_WINDOW(project_view_window),
-        GTK_DIALOG_MODAL,
+        GTK_FILE_CHOOSER_ACTION_OPEN,
         "Cancel", GTK_RESPONSE_CANCEL,
-        "Save", GTK_RESPONSE_ACCEPT,
+        "Upload", GTK_RESPONSE_ACCEPT,
         NULL);
 
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 12);
-    gtk_container_add(GTK_CONTAINER(content), box);
-
-    GtkWidget *label = gtk_label_new("Enter file link or path:");
-    gtk_label_set_xalign(GTK_LABEL(label), 0);
-    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
-
-    GtkWidget *entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "https://example.com/file or /path/to/file");
-    gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
-
-    gtk_widget_show_all(dialog);
-
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-        const char *link = gtk_entry_get_text(GTK_ENTRY(entry));
-        if (link && strlen(link) > 0) {
-            std::string file_name = link;
-            std::string file_type = "link";
-            int file_size = 0;
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        if (filename) {
             char response[4096];
-            if (!network_upload_file(task_id, file_name.c_str(), link, file_type.c_str(), file_size, response, sizeof(response))) {
-                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to add file (network error).");
+            if (!network_upload_file_with_content(task_id, filename, response, sizeof(response))) {
+                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to upload file (network error).");
             } else if (json_get_status(response) != 0) {
-                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to add file.");
+                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to upload file.");
             } else {
                 load_tasks();
             }
+            g_free(filename);
         }
     }
 
     gtk_widget_destroy(dialog);
     g_free(task_id);
+}
+
+// Helper struct to pass file info to callback
+struct FileDownloadData {
+    std::string file_id;
+    std::string file_name;
+};
+
+void on_download_file_clicked(GtkWidget *widget, gpointer data) {
+    FileDownloadData *file_data = (FileDownloadData*)data;
+
+    // Show save dialog
+    GtkWidget *dialog = gtk_file_chooser_dialog_new("Save File",
+        GTK_WINDOW(project_view_window),
+        GTK_FILE_CHOOSER_ACTION_SAVE,
+        "Cancel", GTK_RESPONSE_CANCEL,
+        "Save", GTK_RESPONSE_ACCEPT,
+        NULL);
+
+    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), file_data->file_name.c_str());
+    gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        if (filename) {
+            if (!network_download_file_content(file_data->file_id.c_str(), filename)) {
+                show_error_dialog(GTK_WINDOW(project_view_window), "Failed to download file.");
+            }
+            g_free(filename);
+        }
+    }
+
+    gtk_widget_destroy(dialog);
 }
 
 void on_task_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer data) {
@@ -1044,18 +1061,39 @@ void on_task_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeVie
         return;
     }
 
-    // If only one file, open it directly
+    // If only one file, show save dialog directly
     if (files.size() == 1) {
-        std::string file_path = files[0].value("file_path", "");
-        if (!file_path.empty()) {
-            // Open URL in OperaGX browser
-            open_url_in_operagx(file_path);
+        std::string file_id = files[0].value("file_id", "");
+        std::string file_name = files[0].value("file_name", "");
+
+        if (!file_id.empty() && !file_name.empty()) {
+            // Show save dialog
+            GtkWidget *dialog = gtk_file_chooser_dialog_new("Save File",
+                GTK_WINDOW(project_view_window),
+                GTK_FILE_CHOOSER_ACTION_SAVE,
+                "Cancel", GTK_RESPONSE_CANCEL,
+                "Save", GTK_RESPONSE_ACCEPT,
+                NULL);
+
+            gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), file_name.c_str());
+            gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+            if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+                char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+                if (filename) {
+                    if (!network_download_file_content(file_id.c_str(), filename)) {
+                        show_error_dialog(GTK_WINDOW(project_view_window), "Failed to download file.");
+                    }
+                    g_free(filename);
+                }
+            }
+            gtk_widget_destroy(dialog);
         }
         g_free(task_id);
         return;
     }
 
-    // Multiple files - show a dialog with all links
+    // Multiple files - show a dialog with download buttons
     GtkWidget *dialog = gtk_dialog_new_with_buttons("Task Files",
         GTK_WINDOW(project_view_window),
         GTK_DIALOG_MODAL,
@@ -1074,28 +1112,28 @@ void on_task_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeVie
     gtk_container_set_border_width(GTK_CONTAINER(box), 12);
     gtk_container_add(GTK_CONTAINER(scrolled), box);
 
-    // Store URLs to free later
-    std::vector<gchar*> allocated_urls;
+    // Store file data to free later
+    std::vector<FileDownloadData*> allocated_data;
 
-    // Add each file as a clickable button
+    // Add each file as a downloadable button
     for (const auto &file : files) {
+        std::string file_id = file.value("file_id", "");
         std::string file_name = file.value("file_name", "");
-        std::string file_path = file.value("file_path", "");
 
-        if (file_name.empty() || file_path.empty()) {
+        if (file_id.empty() || file_name.empty()) {
             continue;
         }
 
-        // Create a button that will open in OperaGX
-        std::string button_label = "🔗 " + file_name;
+        // Create a download button
+        std::string button_label = "📥 " + file_name;
         GtkWidget *file_button = gtk_button_new_with_label(button_label.c_str());
         gtk_button_set_relief(GTK_BUTTON(file_button), GTK_RELIEF_NONE);
 
-        // Allocate memory for the URL and store it
-        gchar *url_copy = g_strdup(file_path.c_str());
-        allocated_urls.push_back(url_copy);
+        // Allocate memory for file data
+        FileDownloadData *data = new FileDownloadData{file_id, file_name};
+        allocated_data.push_back(data);
 
-        g_signal_connect(file_button, "clicked", G_CALLBACK(on_file_button_clicked), url_copy);
+        g_signal_connect(file_button, "clicked", G_CALLBACK(on_download_file_clicked), data);
         gtk_box_pack_start(GTK_BOX(box), file_button, FALSE, FALSE, 0);
     }
 
@@ -1103,9 +1141,9 @@ void on_task_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeVie
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
 
-    // Free allocated URLs
-    for (gchar *url : allocated_urls) {
-        g_free(url);
+    // Free allocated data
+    for (FileDownloadData *data : allocated_data) {
+        delete data;
     }
 
     g_free(task_id);

@@ -53,6 +53,9 @@ int network_get_chat_history(const char* project_id, int limit, char* response, 
 // File functions
 int network_upload_file(const char* task_id, const char* file_name, const char* file_path, const char* file_type, int file_size, char* response, int response_size);
 int network_get_files(const char* task_id, char* response, int response_size);
+int network_upload_file_with_content(const char* task_id, const char* local_file_path, char* response, int response_size);
+int network_download_file_content(const char* file_id, const char* save_path);
+int network_delete_file(const char* file_id, char* response, int response_size);
 
 // Contact functions
 int network_add_contact(const char* contact, char* response, int response_size);

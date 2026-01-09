@@ -7,9 +7,12 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <mutex>
+#include <fstream>
+#include <vector>
 #include "../Common/protocol.h"
 #include "../Common/json_helper.h"
 #include "../Common/message_logger.h"
+#include "../Common/base64_util.h"
 
 class NetworkManager {
 private:
@@ -497,6 +500,100 @@ public:
         request.add("task_id", task_id);
 
         if (!sendMessage(MSG_GET_FILES_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    bool uploadFileWithContent(const std::string& task_id, const std::string& local_file_path,
+                               std::string& response_data) {
+        // Read file from local disk
+        std::ifstream file(local_file_path, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        std::streamsize file_size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        std::vector<char> file_data(file_size);
+        if (!file.read(file_data.data(), file_size)) {
+            return false;
+        }
+        file.close();
+
+        // Extract file name from path
+        size_t last_slash = local_file_path.find_last_of("/\\");
+        std::string file_name = (last_slash != std::string::npos)
+                                ? local_file_path.substr(last_slash + 1)
+                                : local_file_path;
+
+        // Determine file type from extension
+        std::string file_type = "application/octet-stream";
+        size_t dot_pos = file_name.find_last_of('.');
+        if (dot_pos != std::string::npos) {
+            file_type = file_name.substr(dot_pos + 1);
+        }
+
+        // Encode file data as base64
+        std::string encoded_data = base64_encode(file_data.data(), file_size);
+
+        // Build request
+        JsonBuilder request;
+        request.add("task_id", task_id)
+               .add("file_name", file_name)
+               .add("file_type", file_type)
+               .add("file_size", (int)file_size)
+               .add("file_data", encoded_data);
+
+        if (!sendMessage(MSG_UPLOAD_FILE_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        return receiveMessage(response_type, response_data);
+    }
+
+    bool downloadFileContent(const std::string& file_id, std::vector<char>& file_data_out,
+                            std::string& file_name_out, std::string& file_type_out) {
+        JsonBuilder request;
+        request.add("file_id", file_id);
+
+        if (!sendMessage(MSG_DOWNLOAD_FILE_REQUEST, request.build())) {
+            return false;
+        }
+
+        MessageType response_type;
+        std::string response_data;
+        if (!receiveMessage(response_type, response_data)) {
+            return false;
+        }
+
+        // Parse response
+        JsonParser parser(response_data);
+        int status = parser.getInt("status");
+        if (status != STATUS_SUCCESS) {
+            return false;
+        }
+
+        file_name_out = parser.getString("file_name");
+        file_type_out = parser.getString("file_type");
+        std::string encoded_data = parser.getString("file_data");
+
+        // Decode base64 data
+        std::string decoded_data = base64_decode(encoded_data);
+        file_data_out.assign(decoded_data.begin(), decoded_data.end());
+
+        return true;
+    }
+
+    bool deleteFile(const std::string& file_id, std::string& response_data) {
+        JsonBuilder request;
+        request.add("file_id", file_id);
+
+        if (!sendMessage(MSG_DELETE_FILE_REQUEST, request.build())) {
             return false;
         }
 
